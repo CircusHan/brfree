@@ -2,6 +2,11 @@ from fpdf import FPDF
 import os
 from datetime import datetime
 
+
+class MissingKoreanFontError(FileNotFoundError):
+    """Raised when the required Korean font file is not available."""
+    pass
+
 # Define path for a Korean font file.
 # Assumes NanumGothic.ttf will be placed in static/fonts/
 FONT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts'))
@@ -10,19 +15,17 @@ KOREAN_FONT_PATH = os.path.join(FONT_DIR, "NanumGothic.ttf")
 
 def _add_korean_font(pdf_instance):
     """Helper function to add Korean font to the PDF instance."""
-    try:
-        if os.path.exists(KOREAN_FONT_PATH):
-            pdf_instance.add_font("NanumGothic", "", KOREAN_FONT_PATH, uni=True)
-            pdf_instance.set_font("NanumGothic", size=12)
-            return True
-        else:
-            pdf_instance.set_font("Arial", size=10) # Fallback
-            pdf_instance.cell(0, 10, txt="Korean font (NanumGothic.ttf) not found in static/fonts/. Korean text may not display correctly.", ln=True, align="C")
-            return False
-    except Exception as e:
-        pdf_instance.set_font("Arial", size=10) # Fallback
-        pdf_instance.cell(0, 10, txt=f"Error loading font: {str(e)}. Korean text may not display correctly.", ln=True, align="C")
-        return False
+    if os.path.exists(KOREAN_FONT_PATH):
+        pdf_instance.add_font("NanumGothic", "", KOREAN_FONT_PATH, uni=True)
+        pdf_instance.set_font("NanumGothic", size=12)
+        return True
+    raise MissingKoreanFontError(
+        (
+            "Korean font 'NanumGothic.ttf' was not found in app/static/fonts/. "
+            "Install the font (e.g. via 'sudo apt-get install fonts-nanum') or "
+            "place the TTF file in that directory."
+        )
+    )
 
 def generate_prescription_pdf(patient_name, patient_rrn, department, prescriptions, total_fee):
     pdf = FPDF()
