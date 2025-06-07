@@ -88,7 +88,10 @@ def load_prescriptions():
     total_fee = sum(p["Fee"] for p in selected_prescriptions)
 
     # Save the generated prescriptions and total fee for later use
-    session["last_prescriptions"] = selected_prescriptions
+    session["last_prescriptions"] = [
+        {"name": p["Prescription"], "fee": float(p["Fee"])}
+        for p in selected_prescriptions
+    ]
     session["last_total_fee"] = total_fee
 
     return jsonify({"prescriptions": selected_prescriptions, "total_fee": total_fee})
