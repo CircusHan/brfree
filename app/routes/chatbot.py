@@ -514,7 +514,7 @@ def handle_chatbot_request():
     except Exception as e:
         # General error handling for API calls or other unexpected issues
         # Log the error for server-side review: print(f"Error generating content: {e}")
-        return jsonify({"error": f"Error generating content: {str(e)}", "reply": "죄송합니다. AI 서비스와 통신 중 오류가 발생했습니다."}), 500
+        return jsonify({"error": "Error communicating with AI service", "reply": f"AI 서비스 오류: {str(e)}"}), 500
 
 # Example of how to register this blueprint in app/__init__.py:
 # from .routes.chatbot import chatbot_bp
