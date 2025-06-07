@@ -3,7 +3,7 @@ import csv # Added for potential direct use if lookup_reservation is adapted
 import re # Added for regex parsing
 import random # Added for get_prescription_details_for_payment
 import google.generativeai as genai
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, session, url_for
 import base64
 from io import BytesIO
 # PIL might be needed for image validation or manipulation, but not directly for API call if blobs are correct
@@ -28,6 +28,8 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 - 복잡하거나 민감한 문의에 대해서는 적절한 보건소 직원에게 안내하거나, 추가 정보를 찾아볼 수 있는 방법을 제시합니다.
 - 응급 상황 시 대처 요령을 안내하고, 필요시 즉시 도움을 요청할 수 있도록 안내합니다. (예: "즉시 119에 전화하시거나 가장 가까운 직원에게 알려주세요.")
 - 개인적인 의학적 진단이나 처방은 제공하지 않으며, "의사 또는 전문 의료인과 상담하시는 것이 가장 좋습니다."와 같이 안내합니다.
+- 사용자가 '처방전 발급' 또는 이와 유사한 요청을 하는 경우, 이는 처방전 발급 의도로 간주합니다. 응답에 `[PRESCRIPTION_CERTIFICATE_INTENT]` 특수 태그를 포함하십시오. (예: "처방전 발급을 원하시나요? [PRESCRIPTION_CERTIFICATE_INTENT]")
+- 사용자가 '진료확인서 발급' 또는 이와 유사한 요청을 하는 경우, 이는 진료확인서 발급 의도로 간주합니다. 응답에 `[MEDICAL_CONFIRMATION_CERTIFICATE_INTENT]` 특수 태그를 포함하십시오. (예: "진료확인서 발급을 도와드릴까요? [MEDICAL_CONFIRMATION_CERTIFICATE_INTENT]")
 - 당신의 답변은 한국어로 제공되어야 합니다.
 
 **응답 스타일:**
@@ -142,6 +144,10 @@ def process_rrn_payment(user_message, ai_response_text):
     if "[RRN_PAYMENT_INTENT]" not in ai_response_text:
         return None
 
+    # Explicitly check if reception is complete
+    if not session.get('reception_complete'):
+        return "접수를 먼저 완료해주세요. 접수 완료 후 수납을 진행할 수 있습니다."
+
     name_match_ai = re.search(r"이름:\s*([가-힣]{2,10})", ai_response_text)
     rrn_match_ai = re.search(r"주민번호:\s*(\d{6}-\d{7})", ai_response_text)
 
@@ -182,6 +188,42 @@ def process_rrn_payment(user_message, ai_response_text):
 
     return f"성함 {name} 님 ({department} 진료), 예상 수납 정보입니다. 처방내역: {prescriptions_string}. 총 예상 금액은 {total_fee_string}원 입니다. 결제를 진행하시겠습니까?"
 
+
+def process_prescription_certificate_request(user_message, ai_response_text):
+    if "[PRESCRIPTION_CERTIFICATE_INTENT]" in ai_response_text:
+        if not session.get('reception_complete'):
+            return "접수를 먼저 완료해주세요. 접수 완료 후 처방전 발급을 요청해주세요."
+        if not session.get('payment_complete'):
+            return "수납을 먼저 완료해주세요. 수납 완료 후 처방전 발급을 요청해주세요."
+
+        patient_name = session.get('patient_name')
+        patient_rrn = session.get('patient_rrn')
+        department = session.get('department')
+
+        if not all([patient_name, patient_rrn, department]):
+            return "환자 정보(성명, 주민번호, 진료과)가 세션에 없어 처방전을 발급할 수 없습니다. 접수부터 다시 진행해주세요."
+
+        pdf_url = url_for('certificate.generate_prescription_pdf', _external=True)
+        return {"reply": "처방전이 발급되었습니다. 아래 링크에서 확인하세요.", "pdf_download_url": pdf_url}
+    return None
+
+def process_medical_confirmation_request(user_message, ai_response_text):
+    if "[MEDICAL_CONFIRMATION_CERTIFICATE_INTENT]" in ai_response_text:
+        if not session.get('reception_complete'):
+            return "접수를 먼저 완료해주세요. 접수 완료 후 진료확인서 발급을 요청해주세요."
+        if not session.get('payment_complete'):
+            return "수납을 먼저 완료해주세요. 수납 완료 후 진료확인서 발급을 요청해주세요."
+
+        patient_name = session.get('patient_name')
+        patient_rrn = session.get('patient_rrn')
+        department = session.get('department') # Used as disease_name
+
+        if not all([patient_name, patient_rrn, department]):
+            return "환자 정보(성명, 주민번호, 진료과)가 세션에 없어 진료확인서를 발급할 수 없습니다. 접수부터 다시 진행해주세요."
+
+        pdf_url = url_for('certificate.generate_medical_confirmation_pdf', _external=True)
+        return {"reply": "진료확인서가 발급되었습니다. 아래 링크에서 확인하세요.", "pdf_download_url": pdf_url}
+    return None
 
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
@@ -282,6 +324,19 @@ def handle_chatbot_request():
         payment_response = process_rrn_payment(user_question, bot_response_text)
         if payment_response:
             return jsonify({"reply": payment_response})
+
+        # Attempt to process for certificate intents
+        prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
+        if prescription_cert_response:
+            if isinstance(prescription_cert_response, dict):
+                return jsonify(prescription_cert_response)
+            return jsonify({"reply": prescription_cert_response}) # For string error messages
+
+        medical_cert_response = process_medical_confirmation_request(user_question, bot_response_text)
+        if medical_cert_response:
+            if isinstance(medical_cert_response, dict):
+                return jsonify(medical_cert_response)
+            return jsonify({"reply": medical_cert_response}) # For string error messages
 
         # If neither RRN reception nor payment applied, continue with original bot_response_text
         if not bot_response_text.strip():

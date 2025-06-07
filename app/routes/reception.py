@@ -54,6 +54,14 @@ def new_ticket():
 # 라우트 ----------------------------------------------------------------------
 @reception_bp.route("/reception", methods=["GET", "POST"])
 def reception():
+    if request.method == "GET" and request.args.get("step", "method") == "method":
+        session.pop('reception_complete', None)
+        session.pop('payment_complete', None)
+        session.pop('patient_name', None)
+        session.pop('patient_rrn', None)
+        session.pop('department', None)
+        session.pop('ticket', None)
+
     if request.method == "POST":
         action = request.form.get("action")
 
@@ -64,6 +72,8 @@ def reception():
             session['patient_rrn'] = rrn
             resv = lookup_reservation(name, rrn)
             if resv:   # 예약 O → 안내
+                session['reception_complete'] = True
+                session['payment_complete'] = False
                 return render_template("reception.html", step="reserved",
                                        name=name, **resv)
             # 예약 X → 증상 선택
@@ -81,6 +91,8 @@ def reception():
                                        err="이름과 주민번호를 모두 입력하세요.")
             resv = lookup_reservation(name, rrn)
             if resv:  # 예약 O
+                session['reception_complete'] = True
+                session['payment_complete'] = False
                 return render_template("reception.html", step="reserved",
                                        name=name, **resv)
             # 예약 X
@@ -94,6 +106,8 @@ def reception():
             session["department"] = department
             ticket     = new_ticket()
             session["ticket"] = ticket
+            session['reception_complete'] = True
+            session['payment_complete'] = False
             return render_template("reception.html", step="ticket",
                                    department=department, ticket=ticket)
 
