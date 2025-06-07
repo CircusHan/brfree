@@ -9,6 +9,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import random
 import csv
 import os
+from app.routes.chatbot import update_reservation_status
 
 # ──────────────────────────────────────────────────────────
 #  Blueprint 인스턴트를 'payment_bp'라는 이름으로 노출
@@ -122,71 +123,7 @@ def done():
     # Update payment status in reservations.csv
     patient_rrn = session.get("patient_rrn")
     if patient_rrn:
-        try:
-            with open(RESERVATIONS_CSV, 'r', newline='', encoding='utf-8-sig') as file:
-                reader = csv.DictReader(file)
-                rows = list(reader)
-                fieldnames = reader.fieldnames
-                if not fieldnames: # Handle empty or malformed CSV
-                    fieldnames = ['name', 'rrn', 'time', 'department', 'location', 'doctor', 'payment_status']
-
-
-            updated = False
-            for row in rows:
-                if row.get("rrn") == patient_rrn:
-                    row["payment_status"] = "Paid"
-                    updated = True
-                    break
-
-            if updated:
-                # Ensure 'payment_status' is in fieldnames if it wasn't (e.g., new file)
-                # However, the previous step should have added it.
-                # For robustness, especially if the file could be manually reverted or is new:
-                if "payment_status" not in fieldnames:
-                    # This situation implies the CSV was not pre-processed by step 1,
-                    # or fieldnames were not captured correctly from an empty file.
-                    # We'll add it, but this might indicate an issue if rows don't expect it.
-                    # Given the problem description, 'payment_status' should exist.
-                    # If `rows` came from DictReader, they are dicts. If fieldnames were empty
-                    # and we defaulted them, this part is crucial.
-                    # A truly robust solution for new/empty CSVs might need more logic
-                    # or rely on `payment_status` definitely being there from step 1.
-                    # For now, assume `fieldnames` from `DictReader` is correct if file not empty.
-                    # If file was empty and `fieldnames` was empty, we manually set them.
-                    # Let's assume 'payment_status' is expected.
-                    pass # fieldnames should include it from DictReader or our default
-
-                with open(RESERVATIONS_CSV, 'w', newline='', encoding='utf-8') as file:
-                    writer = csv.DictWriter(file, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-            elif not rows and fieldnames: # CSV was empty, write header if patient_rrn was somehow processed
-                # This case is unlikely if patient_rrn implies an existing reservation.
-                # But if we wanted to create a new entry, this might be relevant.
-                # For now, we only update, so 'updated' being false on empty 'rows' is fine.
-                with open(RESERVATIONS_CSV, 'w', newline='', encoding='utf-8') as file:
-                    writer = csv.DictWriter(file, fieldnames=fieldnames)
-                    writer.writeheader() # Write header to empty file
-
-        except FileNotFoundError:
-            # Log this error: app.logger.error(f"Reservations file not found: {RESERVATIONS_CSV}")
-            print(f"Error: Reservations file not found at {RESERVATIONS_CSV}")
-            # Create the file with headers if it's missing
-            try:
-                with open(RESERVATIONS_CSV, 'w', newline='', encoding='utf-8') as file:
-                    # Define default headers if file is created anew
-                    default_fieldnames = ['name', 'rrn', 'time', 'department', 'location', 'doctor', 'payment_status']
-                    writer = csv.DictWriter(file, fieldnames=default_fieldnames)
-                    writer.writeheader()
-                print(f"Created empty reservations file with headers at {RESERVATIONS_CSV}")
-            except Exception as e_create:
-                # Log this error: app.logger.error(f"Error creating reservations file: {e_create}")
-                print(f"Error creating reservations file: {e_create}")
-        except Exception as e:
-            # Log this error: app.logger.error(f"Error updating payment status: {e}")
-            print(f"Error updating payment status in CSV: {e}")
-            # Depending on policy, may or may not want to pass silently
-            pass
+        update_reservation_status(patient_rrn, "Paid")
 
     return render_template(
         "payment.html",

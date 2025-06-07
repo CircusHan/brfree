@@ -109,6 +109,7 @@ def process_rrn_reception(user_message, ai_response_text):
                     session['patient_name'] = name
                     session['patient_rrn'] = rrn
                     session['department'] = details.get('department')
+                    update_reservation_status(rrn, "Registered")
                     # session['time'] = details.get('time') # Optional: Store if needed later
                     # session['location'] = details.get('location') # Optional: Store if needed later
                     # session['doctor'] = details.get('doctor') # Optional: Store if needed later
@@ -271,11 +272,14 @@ def process_kiosk_status_check(user_message, ai_response_text):
             return "접수와 수납이 모두 완료되었습니다. 이제 증명서를 발급받으실 수 있습니다. 원하시는 증명서 종류를 말씀해주세요 (예: '처방전 발급' 또는 '진료확인서 발급')."
     return None
 
-def update_payment_status_in_csv(patient_rrn):
-    if not patient_rrn:
+def update_reservation_status(rrn, status):
+    """Update the payment_status column for a reservation identified by rrn."""
+    if not rrn:
         return False
 
-    expected_fieldnames = ['name', 'rrn', 'time', 'department', 'location', 'doctor', 'payment_status']
+    expected_fieldnames = [
+        'name', 'rrn', 'time', 'department', 'location', 'doctor', 'payment_status'
+    ]
 
     try:
         rows = []
@@ -285,41 +289,38 @@ def update_payment_status_in_csv(patient_rrn):
             with open(RESERVATIONS_CSV_PATH, 'w', newline='', encoding='utf-8') as file:
                 writer = csv.DictWriter(file, fieldnames=expected_fieldnames)
                 writer.writeheader()
-            return False # File created, but no specific patient row was updated
+            return False
 
         with open(RESERVATIONS_CSV_PATH, 'r', newline='', encoding='utf-8-sig') as file:
             reader = csv.DictReader(file)
-            current_fieldnames = reader.fieldnames
-            if not current_fieldnames: # Handles empty file
-                current_fieldnames = list(expected_fieldnames) # Use a copy
+            current_fieldnames = reader.fieldnames or list(expected_fieldnames)
             rows = list(reader)
 
-        # Ensure 'payment_status' is in current_fieldnames and all rows
         if 'payment_status' not in current_fieldnames:
             current_fieldnames.append('payment_status')
 
-        made_row_changes = False
-        updated_target_patient = False
+        updated = False
         for row in rows:
             if 'payment_status' not in row:
-                row['payment_status'] = 'Pending' # Default for existing rows missing the column
-                made_row_changes = True
-            if row.get("rrn") == patient_rrn:
-                if row.get("payment_status") != "Paid":
-                    row["payment_status"] = "Paid"
-                    made_row_changes = True
-                updated_target_patient = True
+                row['payment_status'] = 'Pending'
+            if row.get('rrn') == rrn:
+                if row.get('payment_status') != status:
+                    row['payment_status'] = status
+                updated = True
 
-        if made_row_changes: # Write if any row was changed (either target or adding column)
+        if updated:
             with open(RESERVATIONS_CSV_PATH, 'w', newline='', encoding='utf-8') as file:
                 writer = csv.DictWriter(file, fieldnames=current_fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)
-            return updated_target_patient # True if the specific patient was marked Paid
-        return updated_target_patient # False if patient not found or already paid, and no other changes made to file structure
-    except Exception as e:
-        # print(f"Error updating payment status in CSV: {e}") # Consider logging this
+
+        return updated
+    except Exception:
         return False
+
+def update_payment_status_in_csv(patient_rrn):
+    """Mark the given patient's reservation as Paid."""
+    return update_reservation_status(patient_rrn, "Paid")
 
 def process_user_confirmed_payment(user_message, ai_response_text):
     if "[USER_CONFIRMED_PAYMENT_INTENT]" in ai_response_text:
@@ -382,12 +383,21 @@ def handle_chatbot_request():
     model_name = "gemini-1.5-flash-latest"  # Or whichever model Kiosk2 used / is preferred
     model = genai.GenerativeModel(model_name)
 
+    current_status = None
+    name = session.get('patient_name')
+    rrn = session.get('patient_rrn')
+    if name and rrn:
+        details = lookup_reservation(name, rrn)
+        if details:
+            current_status = details.get('status')
+
     state = (
-        f"접수완료:{session.get('reception_complete')}, "
-        f"수납완료:{session.get('payment_complete')}, "
-        f"이름:{session.get('patient_name')}, "
-        f"주민번호:{session.get('patient_rrn')}, "
-        f"진료과:{session.get('department')}"
+        f"접수완료:{session.get('reception_complete')}, ",
+        f"수납완료:{session.get('payment_complete')}, ",
+        f"이름:{name}, ",
+        f"주민번호:{rrn}, ",
+        f"진료과:{session.get('department')}, ",
+        f"상태:{current_status}"
     )
 
     prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, state, "\n\n사용자 질문:\n"]

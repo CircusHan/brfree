@@ -4,7 +4,12 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from flask import Flask
-from app.routes.chatbot import process_user_confirmed_payment, handle_chatbot_request, RESERVATIONS_CSV_PATH
+from app.routes.chatbot import (
+    process_user_confirmed_payment,
+    handle_chatbot_request,
+    process_rrn_reception,
+    RESERVATIONS_CSV_PATH,
+)
 # Removed unused imports: update_payment_status_in_csv, CHATBOT_BASE_DIR
 
 class MockSession(dict):
@@ -115,8 +120,50 @@ def run_waiting_state_test():
         print(f"Test FAILURE: response={data}, payment_complete={payment_complete_in_mock}")
         return False
 
+def run_status_transition_test():
+    print("\nRunning reservation status transition test")
+
+    rrn = "810206-2331088"
+    name = "황용용"
+
+    initial_session_data = {}
+
+    import app.routes.chatbot
+    original_session = app.routes.chatbot.session
+    patched_session_instance = MockSession(initial_session_data)
+    app.routes.chatbot.session = patched_session_instance
+
+    # Simulate reception
+    process_rrn_reception("접수", f"[RRN_RECEPTION_INTENT] 이름 {name}, 주민번호 {rrn}")
+
+    registered = False
+    with open(RESERVATIONS_CSV_PATH, 'r', newline='', encoding='utf-8-sig') as f:
+        for line in f:
+            if rrn in line and "Registered" in line:
+                registered = True
+                break
+
+    # Simulate payment confirmation
+    process_user_confirmed_payment("네", "[USER_CONFIRMED_PAYMENT_INTENT] 수납이 완료되었습니다.")
+
+    paid = False
+    with open(RESERVATIONS_CSV_PATH, 'r', newline='', encoding='utf-8-sig') as f:
+        for line in f:
+            if rrn in line and "Paid" in line:
+                paid = True
+                break
+
+    app.routes.chatbot.session = original_session
+
+    if registered and paid:
+        print("Test SUCCESS: status updated to Registered then Paid.")
+        return True
+    else:
+        print(f"Test FAILURE: registered={registered}, paid={paid}")
+        return False
+
 if __name__ == "__main__":
-    all_ok = run_test() and run_waiting_state_test()
+    all_ok = run_test() and run_waiting_state_test() and run_status_transition_test()
     if all_ok:
         print("All focused tests passed.")
         sys.exit(0)
