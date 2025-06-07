@@ -7,23 +7,33 @@ class MissingKoreanFontError(FileNotFoundError):
     """Raised when the required Korean font file is not available."""
     pass
 
-# Define path for a Korean font file.
-# Assumes NanumGothic.ttf will be placed in static/fonts/
-FONT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts'))
-os.makedirs(FONT_DIR, exist_ok=True) # Ensure the directory exists
-KOREAN_FONT_PATH = os.path.join(FONT_DIR, "NanumGothic.ttf")
+# Define path for Korean font files.
+# Uses the NanumSquareNeo family located under static/fonts/NanumSquareNeo/
+FONT_DIR = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "static",
+        "fonts",
+        "NanumSquareNeo",
+        "NanumSquareNeo",
+        "TTF",
+    )
+)
+os.makedirs(FONT_DIR, exist_ok=True)  # Ensure the directory exists
+KOREAN_FONT_PATH = os.path.join(FONT_DIR, "NanumSquareNeo-bRg.ttf")
 
 def _add_korean_font(pdf_instance):
-    """Helper function to add Korean font to the PDF instance."""
+    """Helper to add NanumSquareNeo font to the PDF instance."""
     if os.path.exists(KOREAN_FONT_PATH):
-        pdf_instance.add_font("NanumGothic", "", KOREAN_FONT_PATH, uni=True)
-        pdf_instance.set_font("NanumGothic", size=12)
+        pdf_instance.add_font("NanumSquareNeo", "", KOREAN_FONT_PATH, uni=True)
+        pdf_instance.set_font("NanumSquareNeo", size=12)
         return True
     raise MissingKoreanFontError(
         (
-            "Korean font 'NanumGothic.ttf' was not found in app/static/fonts/. "
-            "Install the font (e.g. via 'sudo apt-get install fonts-nanum') or "
-            "place the TTF file in that directory."
+            "Korean font 'NanumSquareNeo-bRg.ttf' was not found in "
+            "app/static/fonts/NanumSquareNeo/NanumSquareNeo/TTF/. "
+            "Ensure the font files are present."
         )
     )
 

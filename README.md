@@ -11,7 +11,7 @@ make payments, print certificates and interact with an AI assistant.
 - **Payment** – simple payment form that loads recommended prescriptions from
   `data/treatment_fees.csv` and records payment details.
 - **Certificate Issuance** – generates PDF prescriptions and medical
-  confirmations. Korean text in the PDFs requires the NanumGothic font.
+  confirmations. Korean text in the PDFs requires the NanumSquareNeo font.
 - **AI Chatbot** – powered by Google Gemini to answer common questions.
 - **Adjustable Font Size** and basic language support (Korean/English).
 
@@ -20,10 +20,9 @@ make payments, print certificates and interact with an AI assistant.
 1. **Prerequisites**
    - Python 3.8 or newer.
    - A terminal or command prompt.
-   - A TrueType font file `NanumGothic.ttf` placed in
-     `app/static/fonts/` so PDF output shows Korean correctly.
-     The system package `fonts-nanum` on Ubuntu contains this font or you
-     can download it from <https://hangeul.naver.com/font>.
+   - A TrueType font file `NanumSquareNeo-bRg.ttf` placed in
+     `app/static/fonts/NanumSquareNeo/NanumSquareNeo/TTF/` so PDF output shows Korean correctly.
+     The font is included in this repository under that directory.
 
 2. **Clone the repository**
    ```bash
@@ -77,6 +76,6 @@ python run.py
 
 The kiosk will be available at <http://127.0.0.1:5001/>.
 
-When generating PDFs, if `NanumGothic.ttf` is missing you will see a warning in
+When generating PDFs, if `NanumSquareNeo-bRg.ttf` is missing you will see a warning in
 the PDF and Korean characters may not render correctly. Ensure the font file is
-present in `app/static/fonts/`.
+present in `app/static/fonts/NanumSquareNeo/NanumSquareNeo/TTF/`.
