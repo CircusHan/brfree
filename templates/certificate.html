@@ -1,34 +1,14 @@
 {% extends "base.html" %}
 {% block title %}증명서 발급{% endblock %}
 {% block content %}
-  {% if step == 'choose' %}
-    <h2>서류 종류 선택</h2>
-    <form method="post">
-      <input type="hidden" name="step" value="choose" />
-      <label><input type="radio" name="doc_type" value="diagnosis" /> 진단서</label><br />
-      <label><input type="radio" name="doc_type" value="confirmation" /> 진료확인서</label><br />
-      <label><input type="radio" name="doc_type" value="vaccine" /> 예방접종증명서</label><br />
-      <button type="submit">다음</button>
-    </form>
-  {% elif step == 'auth' %}
-    <h2>본인 인증</h2>
-    <form method="post">
-      <input type="hidden" name="step" value="auth" />
-      <p>선택한 서류: {{ doc_type }}</p>
-      <button type="submit">인증 완료</button>
-    </form>
-  {% elif step == 'payment' %}
-    <h2>결제 방법 선택</h2>
-    <form method="post">
-      <input type="hidden" name="step" value="payment" />
-      <label><input type="radio" name="pay_method" value="cash" /> 현금</label><br />
-      <label><input type="radio" name="pay_method" value="card" /> 카드</label><br />
-      <label><input type="radio" name="pay_method" value="qr" /> QR결제</label><br />
-      <button type="submit">결제 완료</button>
-    </form>
-  {% elif step == 'complete' %}
-    <h2>출력이 완료되었습니다</h2>
-    <p>서류 및 영수증을 받아가세요.</p>
-    <button onclick="location.href='/'">홈으로</button>
-  {% endif %}
+  <h2>증명서 발급</h2>
+  <div style="text-align: center; margin-top: 50px;">
+      <p>발급받을 증명서 종류를 선택해주세요.</p>
+      <a href="{{ url_for('certificate.generate_prescription_pdf') }}" style="text-decoration: none;">
+          <button style="padding: 20px 40px; font-size: 1.2em; margin: 10px; cursor: pointer;">처방전 발급</button>
+      </a>
+      <a href="{{ url_for('certificate.generate_confirmation_pdf') }}" style="text-decoration: none;">
+          <button style="padding: 20px 40px; font-size: 1.2em; margin: 10px; cursor: pointer;">진료확인서 발급</button>
+      </a>
+  </div>
 {% endblock %}

@@ -60,6 +60,8 @@ def reception():
         # 1) 주민등록증 인식 ---------------------------------------------------
         if action == "scan":
             name, rrn = fake_scan_rrn()
+            session['patient_name'] = name
+            session['patient_rrn'] = rrn
             resv = lookup_reservation(name, rrn)
             if resv:   # 예약 O → 안내
                 return render_template("reception.html", step="reserved",
@@ -72,6 +74,8 @@ def reception():
         if action == "manual":
             name = request.form.get("name", "").strip()
             rrn  = request.form.get("rrn",  "").strip()
+            session['patient_name'] = name
+            session['patient_rrn'] = rrn
             if not name or not rrn:
                 return render_template("reception.html", step="input",
                                        err="이름과 주민번호를 모두 입력하세요.")
