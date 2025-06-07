@@ -7,6 +7,7 @@ This is a web-based kiosk application designed for accessibility in public healt
 1.  **Prerequisites:**
     *   Python 3.8 or newer is recommended.
     *   Access to a terminal or command prompt.
+    *   `NanumGothic.ttf` placed in `app/static/fonts/` for proper Korean text rendering in generated PDFs.
 
 2.  **Clone the Repository (if applicable):**
     ```bash
@@ -52,6 +53,9 @@ This is a web-based kiosk application designed for accessibility in public healt
         export GEMINI_API_KEY=YOUR_API_KEY_HERE
         ```
     Replace `YOUR_API_KEY_HERE` with your actual Gemini API key. For persistent storage, consider using a `.env` file with a library like `python-dotenv` (though this is not implemented in the current project setup) or setting it in your system's environment variables.
+
+6.  **Korean Font Setup:**
+    Place the `NanumGothic.ttf` font file in `app/static/fonts/`. This font is required for Korean text to display correctly in generated PDFs.
 
 ## Running the Application
 
