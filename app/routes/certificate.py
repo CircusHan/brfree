@@ -6,8 +6,11 @@ from datetime import datetime # For filename timestamp
 from flask import (
     Blueprint, render_template, request, session, redirect, url_for, jsonify, Response
 )
-from app.utils.pdf_generator import generate_prescription_pdf as create_prescription_pdf_bytes
-from app.utils.pdf_generator import generate_medical_confirmation_pdf as create_confirmation_pdf_bytes
+from app.utils.pdf_generator import (
+    generate_prescription_pdf as create_prescription_pdf_bytes,
+    generate_medical_confirmation_pdf as create_confirmation_pdf_bytes,
+    MissingKoreanFontError,
+)
 
 certificate_bp = Blueprint(
     "certificate", __name__, url_prefix="/certificate", template_folder="../../templates"
@@ -112,13 +115,16 @@ def generate_prescription_pdf():
 
 
     # Generate PDF
-    pdf_bytes = create_prescription_pdf_bytes(
-        patient_name=patient_name,
-        patient_rrn=patient_rrn,
-        department=department,
-        prescriptions=prescription_info["prescriptions"],
-        total_fee=prescription_info["total_fee"]
-    )
+    try:
+        pdf_bytes = create_prescription_pdf_bytes(
+            patient_name=patient_name,
+            patient_rrn=patient_rrn,
+            department=department,
+            prescriptions=prescription_info["prescriptions"],
+            total_fee=prescription_info["total_fee"],
+        )
+    except MissingKoreanFontError as e:
+        return render_template("error.html", message=str(e)), 500
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"prescription_{patient_rrn.split('-')[0]}_{timestamp}.pdf"
@@ -146,11 +152,14 @@ def generate_confirmation_pdf():
         return redirect(url_for("reception.reception", error="department_info_missing_for_confirmation"))
 
     # Generate PDF
-    pdf_bytes = create_confirmation_pdf_bytes(
-        patient_name=patient_name,
-        patient_rrn=patient_rrn,
-        disease_name=department # department is used as disease_name
-    )
+    try:
+        pdf_bytes = create_confirmation_pdf_bytes(
+            patient_name=patient_name,
+            patient_rrn=patient_rrn,
+            disease_name=department,  # department is used as disease_name
+        )
+    except MissingKoreanFontError as e:
+        return render_template("error.html", message=str(e)), 500
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"medical_confirmation_{patient_rrn.split('-')[0]}_{timestamp}.pdf"

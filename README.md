@@ -56,6 +56,11 @@ This is a web-based kiosk application designed for accessibility in public healt
 
 6.  **Korean Font Setup:**
     Place the `NanumGothic.ttf` font file in `app/static/fonts/`. This font is required for Korean text to display correctly in generated PDFs.
+    On Debian/Ubuntu systems you can install the font package using:
+    ```bash
+    sudo apt-get update && sudo apt-get install fonts-nanum
+    ```
+    After installation, copy or link `NanumGothic.ttf` into `app/static/fonts/`.
 
 ## Running the Application
 
