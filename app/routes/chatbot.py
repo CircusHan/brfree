@@ -391,7 +391,7 @@ def handle_chatbot_request():
         if details:
             current_status = details.get('status')
 
-    state = (
+    state_tuple = (
         f"접수완료:{session.get('reception_complete')}, ",
         f"수납완료:{session.get('payment_complete')}, ",
         f"이름:{name}, ",
@@ -399,8 +399,9 @@ def handle_chatbot_request():
         f"진료과:{session.get('department')}, ",
         f"상태:{current_status}"
     )
+    state_str = "".join(list(state_tuple))
 
-    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, state, "\n\n사용자 질문:\n"]
+    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, state_str, "\n\n사용자 질문:\n"]
 
     if base64_image_data:
         try:
