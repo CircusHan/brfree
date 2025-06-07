@@ -30,7 +30,8 @@ def lookup_reservation(name: str, rrn: str):
                     "department": row["department"],
                     "time":       row["time"],
                     "location":   row["location"],
-                    "doctor":     row["doctor"]
+                    "doctor":     row["doctor"],
+                    "status":     row.get("payment_status", "Pending")
                 }
     return None
 
