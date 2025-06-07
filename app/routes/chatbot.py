@@ -374,7 +374,15 @@ def handle_chatbot_request():
     model_name = "gemini-1.5-flash-latest"  # Or whichever model Kiosk2 used / is preferred
     model = genai.GenerativeModel(model_name)
 
-    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, "\n\n사용자 질문:\n"]
+    state = (
+        f"접수완료:{session.get('reception_complete')}, "
+        f"수납완료:{session.get('payment_complete')}, "
+        f"이름:{session.get('patient_name')}, "
+        f"주민번호:{session.get('patient_rrn')}, "
+        f"진료과:{session.get('department')}"
+    )
+
+    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, state, "\n\n사용자 질문:\n"]
 
     if base64_image_data:
         try:
