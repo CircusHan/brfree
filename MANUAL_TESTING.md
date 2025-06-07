@@ -7,7 +7,7 @@ This document outlines the manual testing steps for the certificate (prescriptio
 1.  **Application Running**: Ensure the Flask application is running. This is typically done by executing `python run.py` from the project's root directory. The application should be accessible at `http://127.0.0.1:5001/`.
 2.  **Dependencies Installed**: Ensure all Python dependencies, including `fpdf2`, are installed. This can usually be done by running `pip install -r requirements.txt`.
 3.  **Korean Font File**:
-    *   A Korean TrueType font file (e.g., `NanumGothic.ttf`) must be placed at `app/static/fonts/NanumGothic.ttf`.
+    *   A Korean TrueType font file (`NanumSquareNeo-bRg.ttf`) must be placed at `app/static/fonts/NanumSquareNeo/NanumSquareNeo/TTF/NanumSquareNeo-bRg.ttf`.
     *   If this font file is missing or not accessible, the PDF generation will attempt to use a fallback font (Arial). In this case, Korean characters will likely not render correctly, and a warning message should appear at the top of the generated PDF.
 
 ## Test Steps
@@ -43,7 +43,7 @@ This document outlines the manual testing steps for the certificate (prescriptio
         *   **Patient Information**: The name ("김환자") and RRN ("920202-1234567") should be correct.
         *   **Department**: The selected department (e.g., "호흡기내과") should be listed.
         *   **Prescriptions**: The same prescriptions and total fee loaded in step 5 should be itemized correctly.
-        *   **Korean Text**: All Korean text (titles, labels, patient data, prescription names) should be rendered correctly (requires the NanumGothic font).
+        *   **Korean Text**: All Korean text (titles, labels, patient data, prescription names) should be rendered correctly (requires the NanumSquareNeo font).
         *   **Date**: The current date should be displayed as the issue date.
 
 ---
@@ -99,8 +99,8 @@ This document outlines the manual testing steps for the certificate (prescriptio
 For every PDF generated during the tests, perform the following checks:
 
 *   **Korean Text Rendering**:
-    *   If `NanumGothic.ttf` is correctly installed: All Korean text (static labels, dynamic data) must be displayed clearly and correctly.
-    *   If `NanumGothic.ttf` is *not* installed: A warning message about the missing font should appear at the top of the PDF. Other text might render in Arial, and Korean characters will likely be broken/missing.
+    *   If `NanumSquareNeo-bRg.ttf` is correctly installed: All Korean text (static labels, dynamic data) must be displayed clearly and correctly.
+    *   If `NanumSquareNeo-bRg.ttf` is *not* installed: A warning message about the missing font should appear at the top of the PDF. Other text might render in Arial, and Korean characters will likely be broken/missing.
 *   **Dynamic Data Accuracy**:
     *   Confirm that all pieces of dynamic information (patient name, RRN, selected department/disease name, prescription item names, individual fees, total fees, issue dates) are accurate as per the input or session data.
 *   **Static Text Presence**:
