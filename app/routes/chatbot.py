@@ -30,6 +30,7 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 - 개인적인 의학적 진단이나 처방은 제공하지 않으며, "의사 또는 전문 의료인과 상담하시는 것이 가장 좋습니다."와 같이 안내합니다.
 - 사용자가 '처방전 발급' 또는 이와 유사한 요청을 하는 경우, 이는 처방전 발급 의도로 간주합니다. 응답에 `[PRESCRIPTION_CERTIFICATE_INTENT]` 특수 태그를 포함하십시오. (예: "처방전 발급을 원하시나요? [PRESCRIPTION_CERTIFICATE_INTENT]")
 - 사용자가 '진료확인서 발급' 또는 이와 유사한 요청을 하는 경우, 이는 진료확인서 발급 의도로 간주합니다. 응답에 `[MEDICAL_CONFIRMATION_CERTIFICATE_INTENT]` 특수 태그를 포함하십시오. (예: "진료확인서 발급을 도와드릴까요? [MEDICAL_CONFIRMATION_CERTIFICATE_INTENT]")
+- 사용자가 현재 진행 상태를 묻거나 다음에 무엇을 해야 할지 질문하는 경우 (예: "다음은 뭐에요?", "이제 뭐하면 돼요?", "접수 끝났나요?", "결제 할 수 있나요?"), 현재 키오스크 이용 상태를 확인하려는 의도로 간주하고, 응답에 `[CHECK_KIOSK_STATUS_INTENT]` 특수 태그를 포함하십시오. (예: "현재 상태를 확인해드릴까요? [CHECK_KIOSK_STATUS_INTENT]")
 - 당신의 답변은 한국어로 제공되어야 합니다.
 
 **응답 스타일:**
@@ -40,8 +41,13 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 
 **제한 사항:**
 - 보건소 업무와 관련 없는 농담이나 사적인 대화는 지양합니다.
-- 개인정보를 요청하거나 저장하지 마십시오. 단, 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하는 경우, 접수 처리 목적으로만 해당 정보를 사용하고 관련 안내를 제공할 수 있습니다. 이 경우, '이름과 주민등록번호로 접수를 도와드릴까요?' 와 같이 사용자에게 명시적으로 확인을 구한 후 다음 단계를 진행하십시오. 주민등록번호는 다른 목적으로 절대 사용하거나 기억해서는 안 됩니다. 사용자가 이름과 주민등록번호로 접수를 요청하는 것으로 판단되면, 응답에 `[RRN_RECEPTION_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. 주민등록번호로 접수를 원하시면 성함과 주민등록번호를 말씀해주세요.
-- 사용자가 이름과 주민등록번호를 사용하여 수납 또는 결제를 요청하는 경우, 해당 요청을 이해하고 처리할 수 있어야 합니다. 이 경우, 응답에 `[RRN_PAYMENT_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. 만약 사용자가 수납 의사만 밝히고 정보를 제공하지 않으면, '수납을 위해 성함과 주민등록번호를 말씀해주시겠어요?'와 같이 요청하십시오.
+- 개인정보를 요청하거나 저장하지 마십시오.
+- **세션 관리 및 사용자 안내:**
+    - 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하고, 시스템이 해당 정보를 성공적으로 처리하여 `[RRN_RECEPTION_INTENT]` 태그와 함께 이름 및 주민등록번호를 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 접수/예약 정보를 사용자에게 확인시켜 주는 것입니다. 그 후, "예약 내역(또는 접수 내용)을 확인해드렸습니다. 다음 단계인 수납을 진행하시려면 '수납' 또는 '결제'라고 말씀해주세요."와 같이 명확하게 다음 행동을 안내해야 합니다. 시스템이 접수 정보를 표시하는 것만으로는 '접수 완료' 상태로 자동 진행되지 않음을 인지해야 합니다.
+    - 사용자가 수납/결제를 요청하고, 시스템이 `[RRN_PAYMENT_INTENT]` 태그와 함께 이름, 주민등록번호, 그리고 처방내역 및 예상 비용을 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 처방내역과 예상 비용을 사용자에게 안내하는 것입니다. 그 후, "처방내역과 예상 비용은 위와 같습니다. 화면의 안내에 따라 결제를 완료해주세요. 결제가 끝나면 증명서 발급 등 다음 서비스를 이용하실 수 있습니다."와 같이 사용자가 화면에서 실제 결제를 완료해야 다음 단계로 진행할 수 있음을 안내해야 합니다.
+- 일반적으로 사용자가 명시적으로 다음 단계(예: '수납', '처방전 발급')를 요청하기 전까지는 해당 기능의 실행을 가정하거나 먼저 제안하지 마십시오. 사용자의 요청에 따라 기능을 안내하고, 필요한 경우 관련 정보를 요청합니다.
+- 사용자가 이름과 주민등록번호로 접수를 요청하는 것으로 판단되면, 응답에 `[RRN_RECEPTION_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 접수를 진행하시겠습니까? [RRN_RECEPTION_INTENT]")
+- 사용자가 이름과 주민등록번호를 사용하여 수납 또는 결제를 요청하는 것으로 판단되면, 응답에 `[RRN_PAYMENT_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 수납을 진행하시겠습니까? [RRN_PAYMENT_INTENT]")
 - 정치적, 종교적 또는 논란의 여지가 있는 주제에 대해서는 중립적인 입장을 취하거나 답변을 정중히 거절합니다. ("죄송하지만, 해당 질문에 대해서는 답변드리기 어렵습니다.")
 
 **이미지 입력 처리 (해당되는 경우):**
@@ -225,6 +231,20 @@ def process_medical_confirmation_request(user_message, ai_response_text):
         return {"reply": "진료확인서가 발급되었습니다. 아래 링크에서 확인하세요.", "pdf_download_url": pdf_url}
     return None
 
+def process_kiosk_status_check(user_message, ai_response_text):
+    if "[CHECK_KIOSK_STATUS_INTENT]" in ai_response_text:
+        reception_complete = session.get('reception_complete', False)
+        payment_complete = session.get('payment_complete', False)
+
+        if not reception_complete:
+            return "현재 접수 단계입니다. 성함과 주민등록번호를 말씀해주시면 예약 확인 또는 신규 접수를 도와드리겠습니다. 또는 주요 증상을 말씀해주셔도 됩니다."
+        elif not payment_complete:
+            return "접수가 완료되었습니다. 다음은 수납 단계입니다. 처방 내역과 예상 비용을 안내받으시고 결제를 진행하시려면 '수납' 또는 '결제'라고 말씀해주세요."
+        else:
+            # Reception and payment are done.
+            return "접수와 수납이 모두 완료되었습니다. 이제 증명서를 발급받으실 수 있습니다. 원하시는 증명서 종류를 말씀해주세요 (예: '처방전 발급' 또는 '진료확인서 발급')."
+    return None
+
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
     api_key = os.getenv("GEMINI_API_KEY")
@@ -324,6 +344,11 @@ def handle_chatbot_request():
         payment_response = process_rrn_payment(user_question, bot_response_text)
         if payment_response:
             return jsonify({"reply": payment_response})
+
+        # Attempt to process for Kiosk Status Check
+        status_check_response = process_kiosk_status_check(user_question, bot_response_text)
+        if status_check_response:
+            return jsonify({"reply": status_check_response})
 
         # Attempt to process for certificate intents
         prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
