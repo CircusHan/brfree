@@ -391,17 +391,7 @@ def handle_chatbot_request():
         if details:
             current_status = details.get('status')
 
-    state_tuple = (
-        f"접수완료:{session.get('reception_complete')}, ",
-        f"수납완료:{session.get('payment_complete')}, ",
-        f"이름:{name}, ",
-        f"주민번호:{rrn}, ",
-        f"진료과:{session.get('department')}, ",
-        f"상태:{current_status}"
-    )
-    state_str = "".join(list(state_tuple))
-
-    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, state_str, "\n\n사용자 질문:\n"]
+    prompt_parts = [SYSTEM_INSTRUCTION_PROMPT]
 
     if base64_image_data:
         try:
@@ -425,10 +415,22 @@ def handle_chatbot_request():
             #     return jsonify({"error": f"Invalid image data: {str(img_e)}"}), 400
 
             image_blob = {"mime_type": mime_type, "data": image_bytes}
-            prompt_parts.insert(1, image_blob) # Insert image before the user question but after system prompt
+            prompt_parts.append(image_blob) # Append image if present
         except Exception as e:
             return jsonify({"error": f"Error processing image data: {str(e)}"}), 400
 
+    state_tuple = (
+        f"접수완료:{session.get('reception_complete')}, ",
+        f"수납완료:{session.get('payment_complete')}, ",
+        f"이름:{name}, ",
+        f"주민번호:{rrn}, ",
+        f"진료과:{session.get('department')}, ",
+        f"상태:{current_status}"
+    )
+    for state_item in state_tuple:
+        prompt_parts.append(state_item)
+
+    prompt_parts.append("\n\n사용자 질문:\n")
     prompt_parts.append(user_question)
 
     try:
