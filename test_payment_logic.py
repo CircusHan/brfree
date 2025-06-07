@@ -3,7 +3,8 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from app.routes.chatbot import process_user_confirmed_payment, RESERVATIONS_CSV_PATH
+from flask import Flask
+from app.routes.chatbot import process_user_confirmed_payment, handle_chatbot_request, RESERVATIONS_CSV_PATH
 # Removed unused imports: update_payment_status_in_csv, CHATBOT_BASE_DIR
 
 class MockSession(dict):
@@ -81,8 +82,42 @@ def run_test():
 
     return True
 
+def run_waiting_state_test():
+    print("\nRunning waiting state confirmation test")
+
+    initial_session_data = {
+        'reception_complete': True,
+        'payment_complete': False,
+        'patient_rrn': "970405-1660660",
+        'awaiting_payment_confirmation': True
+    }
+
+    import app.routes.chatbot
+    original_session = app.routes.chatbot.session
+    patched_session_instance = MockSession(initial_session_data)
+    app.routes.chatbot.session = patched_session_instance
+
+    app = Flask(__name__)
+    app.secret_key = 'test'
+
+    with app.test_request_context('/api/chatbot', json={'message': '네'}):
+        response = handle_chatbot_request()
+        data = response.get_json()
+
+    payment_complete_in_mock = patched_session_instance.get('payment_complete')
+
+    app.routes.chatbot.session = original_session
+
+    if data.get('reply') == '수납이 완료되었습니다.' and payment_complete_in_mock is True:
+        print("Test SUCCESS: waiting state handled correctly.")
+        return True
+    else:
+        print(f"Test FAILURE: response={data}, payment_complete={payment_complete_in_mock}")
+        return False
+
 if __name__ == "__main__":
-    if run_test():
+    all_ok = run_test() and run_waiting_state_test()
+    if all_ok:
         print("All focused tests passed.")
         sys.exit(0)
     else:

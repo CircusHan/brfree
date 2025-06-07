@@ -79,3 +79,11 @@ The kiosk will be available at <http://127.0.0.1:5001/>.
 When generating PDFs, if `NanumSquareNeo-bRg.ttf` is missing you will see a warning in
 the PDF and Korean characters may not render correctly. Ensure the font file is
 present in `app/static/fonts/NanumSquareNeo/NanumSquareNeo/TTF/`.
+
+## Chatbot Payment Confirmation
+
+When the chatbot provides estimated prescription fees it finishes with a prompt
+asking "결제를 진행하시겠습니까?". At this point the backend sets a session flag
+`awaiting_payment_confirmation`. If the next user message is a short positive
+answer such as "네" or "수납해줘", the payment is immediately recorded and the
+chatbot responds "수납이 완료되었습니다." without contacting Gemini.
