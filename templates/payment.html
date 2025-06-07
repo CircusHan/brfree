@@ -38,7 +38,7 @@
       <li>소화제 2개</li>
     </ul>
     <p>복약 방법: 하루 3회 식후 복용</p>
-    <button onclick="location.href='{{ url_for('main.index') }}'">홈으로</button> {# Assuming 'main.index' is the home route #}
+    <button onclick="location.href='{{ url_for('home.index') }}'">홈으로</button> {# Redirect to home page #}
   {% endif %}
 {% endblock %}
 
