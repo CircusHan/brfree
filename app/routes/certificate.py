@@ -132,7 +132,7 @@ def generate_prescription_pdf():
     return Response(
         io.BytesIO(pdf_bytes),
         mimetype='application/pdf',
-        headers={'Content-Disposition': f'inline;filename={filename}'}
+        headers={'Content-Disposition': f'attachment;filename={filename}'}
     )
 
 
@@ -167,5 +167,5 @@ def generate_confirmation_pdf():
     return Response(
         io.BytesIO(pdf_bytes),
         mimetype='application/pdf',
-        headers={'Content-Disposition': f'inline;filename={filename}'}
+        headers={'Content-Disposition': f'attachment;filename={filename}'}
     )

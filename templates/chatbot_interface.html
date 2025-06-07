@@ -265,8 +265,19 @@
                 }
 
                 const data = await response.json();
-                appendMessage('bot', data.reply);
-                speak(data.reply);
+                appendMessage('bot', data.reply); // Display the text reply first
+
+                if (data.audio_confirmation_url) {
+                    const audio = new Audio(data.audio_confirmation_url);
+                    audio.play();
+                    // Do not call speak(data.reply) here as custom audio is played
+                } else {
+                    speak(data.reply); // Use TTS if no custom audio
+                }
+
+                if (data.pdf_download_url) {
+                    window.location.href = data.pdf_download_url; // Trigger PDF download
+                }
 
             } catch (error) {
                 console.error('Error sending message:', error);

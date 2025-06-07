@@ -222,7 +222,7 @@ def process_prescription_certificate_request(user_message, ai_response_text):
             return "환자 정보(성명, 주민번호, 진료과)가 세션에 없어 처방전을 발급할 수 없습니다. 접수부터 다시 진행해주세요."
 
         pdf_url = url_for('certificate.generate_prescription_pdf', _external=True)
-        return {"reply": "처방전이 발급되었습니다. 아래 링크에서 확인하세요.", "pdf_download_url": pdf_url}
+        return {"reply": "처방전이 발급되었습니다.", "pdf_download_url": pdf_url, "audio_confirmation_url": "/static/audio/prescription_issued.mp3"}
     return None
 
 def process_medical_confirmation_request(user_message, ai_response_text):
@@ -240,7 +240,7 @@ def process_medical_confirmation_request(user_message, ai_response_text):
             return "환자 정보(성명, 주민번호, 진료과)가 세션에 없어 진료확인서를 발급할 수 없습니다. 접수부터 다시 진행해주세요."
 
         pdf_url = url_for('certificate.generate_medical_confirmation_pdf', _external=True)
-        return {"reply": "진료확인서가 발급되었습니다. 아래 링크에서 확인하세요.", "pdf_download_url": pdf_url}
+        return {"reply": "진료확인서가 발급되었습니다.", "pdf_download_url": pdf_url, "audio_confirmation_url": "/static/audio/medical_certificate_issued.mp3"}
     return None
 
 def process_kiosk_status_check(user_message, ai_response_text):
@@ -347,6 +347,19 @@ def handle_chatbot_request():
 
         bot_response_text = "".join(part.text for part in response.candidates[0].content.parts if hasattr(part, "text"))
 
+        # Attempt to process for certificate intents
+        prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
+        if prescription_cert_response:
+            if isinstance(prescription_cert_response, dict):
+                return jsonify(prescription_cert_response)
+            return jsonify({"reply": prescription_cert_response}) # For string error messages
+
+        medical_cert_response = process_medical_confirmation_request(user_question, bot_response_text)
+        if medical_cert_response:
+            if isinstance(medical_cert_response, dict):
+                return jsonify(medical_cert_response)
+            return jsonify({"reply": medical_cert_response}) # For string error messages
+
         # Attempt to process for RRN reception
         reception_response = process_rrn_reception(user_question, bot_response_text)
         if reception_response:
@@ -362,20 +375,7 @@ def handle_chatbot_request():
         if status_check_response:
             return jsonify({"reply": status_check_response})
 
-        # Attempt to process for certificate intents
-        prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
-        if prescription_cert_response:
-            if isinstance(prescription_cert_response, dict):
-                return jsonify(prescription_cert_response)
-            return jsonify({"reply": prescription_cert_response}) # For string error messages
-
-        medical_cert_response = process_medical_confirmation_request(user_question, bot_response_text)
-        if medical_cert_response:
-            if isinstance(medical_cert_response, dict):
-                return jsonify(medical_cert_response)
-            return jsonify({"reply": medical_cert_response}) # For string error messages
-
-        # If neither RRN reception nor payment applied, continue with original bot_response_text
+        # If no special intent was processed, continue with original bot_response_text
         if not bot_response_text.strip():
             bot_response_text = "죄송합니다. 현재 적절한 답변을 드리기 어렵습니다. 다른 방식으로 질문해주시겠어요?"
         return jsonify({"reply": bot_response_text})
