@@ -109,7 +109,7 @@
 
 <div class="chat-container">
     <h1 style="text-align: center; padding: 15px; margin:0; background-color:skyblue; color:white; font-size:1.8rem;">AI 챗봇 상담</h1>
-    <a href="/home" id="homeBtn" class="chat-btn" style="position: absolute; top: 20px; left: 20px; text-decoration: none;">홈</a>
+    <a href="{{ url_for('home.index') }}" id="homeBtn" class="chat-btn" style="position: absolute; top: 20px; left: 20px; text-decoration: none;">홈</a>
 
     <video id="webcamFeed" autoplay playsinline muted></video> <!-- Added muted to avoid feedback loop if mic is open -->
 
