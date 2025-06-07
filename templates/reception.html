@@ -1,0 +1,97 @@
+{# templates/reception.html #}
+{% extends "base.html" %}
+{% block title %}접수{% endblock %}
+
+{% block content %}
+{# ───────────── 공통 스타일 ───────────── #}
+<style>
+  /* 뷰포트 중앙 정렬용 래퍼 */
+  .center-box{
+    min-height:calc(100vh - 120px);   /* 헤더높이(있다면) 제외 */
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+    padding:0 20px;
+  }
+
+  /* 메인 액션 버튼 */
+  .btn-main{
+    width:80vw; max-width:640px;
+    margin:18px auto; padding:34px 0;
+    font-size:1.9rem; font-weight:700; line-height:1.2;
+    color:#fff;
+    background:linear-gradient(135deg,#6fb8ff 0%,#47a6ff 100%);
+    border:0; border-radius:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,.18);
+    cursor:pointer; transition:.12s;
+  }
+  .btn-main:hover{ transform:translateY(-3px); box-shadow:0 8px 16px rgba(0,0,0,.25); }
+
+  /* 서브 버튼 (홈으로 등) */
+  .btn-sub{
+    background:#4b5563; color:#fff;
+    padding:18px 42px; border-radius:16px; margin-top:32px;
+    font-size:1.25rem; border:0; cursor:pointer;
+  }
+
+  /* 입력 필드 꾸밈 */
+  .form-field{
+    font-size:1.1rem; margin:12px 0; display:block;
+  }
+  .form-field input{
+    font-size:1.1rem; padding:8px 12px; border:1px solid #ccc;
+    border-radius:8px; width:260px; max-width:80vw;
+  }
+</style>
+
+<div class="center-box">
+  {% if step == "method" %}
+  <h2 style="margin-bottom:28px;">접수 방법을 선택하세요</h2>
+  <form method="post">
+    <button class="btn-main" name="action" value="scan">주민등록증 인식</button>
+    <button class="btn-main" name="action" value="manual">직접 입력</button>
+  </form>
+
+  {% elif step == "input" %}
+  <h2 style="margin-bottom:22px;">개인정보 입력</h2>
+  {% if err %}<p style="color:#e11d48;font-weight:600">{{ err }}</p>{% endif %}
+  <form method="post">
+    <input type="hidden" name="action" value="manual">
+    <label class="form-field">이름<br><input type="text" name="name" required></label>
+    <label class="form-field">주민번호<br><input type="text" name="rrn" placeholder="YYYYMMDD-XXXXXXX" required></label>
+    <button class="btn-main" style="margin-top:26px;">확인</button>
+  </form>
+
+  {% elif step == "reserved" %}
+  <h2 style="margin-bottom:18px;">예약이 확인되었습니다</h2>
+  <p><strong>{{ name }}</strong> 님</p>
+  <p>진료과&nbsp;:&nbsp;{{ department }}</p>
+  <p>예약 시간&nbsp;:&nbsp;{{ time }}</p>
+  <p>위치&nbsp;:&nbsp;{{ location }}</p>
+  <p>담당 의사&nbsp;:&nbsp;{{ doctor }}</p>
+  <button class="btn-sub" onclick="location.href='/'">홈으로</button>
+
+  {% elif step == "symptom" %}
+  <h2 style="margin-bottom:22px;">확인된 예약 내역이 없습니다<br>증상을 선택해주세요</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="choose_symptom">
+    <div style="text-align:left; display:inline-block;">
+      {% for code, label in symptoms %}
+      <label style="display:block;margin:6px 0;">
+        <input type="radio" name="symptom" value="{{ code }}" required>
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+    <button class="btn-main" style="margin-top:24px;">확인</button>
+  </form>
+
+  {% elif step == "ticket" %}
+  <h2 style="margin-bottom:22px;">번호표가 발급되었습니다</h2>
+  <p>안내 진료과&nbsp;:&nbsp;{{ department }}</p>
+  <p style="font-size:2.6rem;font-weight:800;margin:16px 0;">{{ ticket }}</p>
+  <p>안내 창호에 호출될 때까지 대기해 주세요.</p>
+  <button class="btn-sub" onclick="location.href='/'">홈으로</button>
+  {% endif %}
+</div>
+{% endblock %}

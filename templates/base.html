@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('lang', 'ko') }}">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}보건소 키오스크{% endblock %}</title>
+
+    <!-- 정적 파일 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</head>
+
+<!-- ★ 세션에 저장된 글꼴 크기(class) → body 에 적용 -->
+<body class="font-{{ font_size|default('normal') }}">
+
+<!-- ───────────── 고정 헤더 ───────────── -->
+<header class="fixed-header">
+    <!-- 글자 크기 버튼 3종 -->
+    <button onclick="location.href='{{ url_for('home.set_font', size='small') }}'">가/</button>
+    <button onclick="location.href='{{ url_for('home.set_font', size='normal') }}'">가</button>
+    <button onclick="location.href='{{ url_for('home.set_font', size='large') }}'">가+</button>
+
+    <!-- 언어 전환 · TTS · 지도 등 기타 기능 -->
+    <button onclick="location.href='{{ url_for('home.switch_language') }}'">
+        {{ 'English' if session.get('lang') == 'ko' else '한국어' }}
+    </button>
+
+    <button id="tts-play" onclick="playTTS(document.title)">TTS</button>
+
+    <button onclick="location.href='{{ url_for('home.emergency') }}'">
+        <img src="{{ url_for('static', filename='images/emergency.png') }}" alt="Emergency" style="width:24px;">
+    </button>
+
+    <button onclick="openMap()">지도</button>
+</header>
+
+<!-- ───────────── 본문 영역 ───────────── -->
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<button id="aiChatbotInvokeButton" style="position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background-color: #007bff; color: white; font-size: 24px; border: none; cursor: pointer; z-index: 1000;">AI</button>
+
+<div id="aiChatbotModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1001; justify-content: center; align-items: center;">
+    <div style="background-color: white; padding: 20px; border-radius: 10px; width: 80%; max-width: 500px; display: flex; flex-direction: column; height: 90%;">
+        <button id="aiChatbotCloseButton" style="align-self: flex-end; background: none; border: none; font-size: 20px; cursor: pointer;">X</button>
+        <div id="aiChatbotVideo" style="width: 100%; height: 200px; background-color: #eee; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;">AI 아바타 영상</div>
+        <div id="aiChatbotChatbox" style="flex-grow: 1; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; overflow-y: auto;">
+            <!-- Chat messages will appear here -->
+        </div>
+        <div id="aiChatbotInputContainer" style="display: flex;">
+            <input type="text" id="aiChatbotInput" placeholder="메시지를 입력하세요..." style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+            <button id="aiChatbotSendButton" style="padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; margin-left: 5px; cursor: pointer;">전송</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

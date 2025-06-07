@@ -1,0 +1,240 @@
+/* --------------------------------------------------------
+   RESET (필요 시 사용 – 중복 정의되면 지워도 무방)
+----------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  /* 시스템 글꼴 우선 + 한글 대응 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  "Helvetica Neue", Arial, "Noto Sans KR", "Apple SD Gothic Neo",
+  "Malgun Gothic", sans-serif;
+  background: #f4f7fa;
+  color: #222;
+}
+
+/* --------------------------------------------------------
+   GLOBAL FONT-SIZE SCALE  (★ 추가된 핵심 부분)
+----------------------------------------------------------- */
+body.font-small  { font-size: 14px; }   /* 전체 14 px 기준 */
+body.font-normal { font-size: 16px; }   /* 전체 16 px 기준 (기본) */
+body.font-large  { font-size: 20px; }   /* 전체 20 px 기준 */
+
+body.font-small  *,
+body.font-normal *,
+body.font-large  * {
+  /* 어떤 요소든 고정 px 로 지정돼 있더라도 부모 크기를 상속 */
+  font-size: inherit !important;
+}
+
+/* --------------------------------------------------------
+   레이아웃 공통
+----------------------------------------------------------- */
+.fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: #ffffff;
+  border-bottom: 1px solid #d7e1ec;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  z-index: 1000;
+}
+
+main {
+  padding-top: 70px; /* 헤더 높이만큼 내려서 내용 가림 방지 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: calc(100% - 70px);
+}
+
+/* --------------------------------------------------------
+   버튼 – 전체 공통
+----------------------------------------------------------- */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 600;
+  background: #2b82f6;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+button:hover      { background: #1f6fe0; }
+button:active     { background: #185ec2; }
+button:disabled   { opacity: 0.5; cursor: not-allowed; }
+
+header button img {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------
+   홈 화면(예시) 전용
+----------------------------------------------------------- */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  margin-top: 40px;
+}
+
+.logo-and-title img {
+  width: 120px;
+  height: auto;
+}
+
+.button-group button {
+  width: 300px;
+  font-size: 1.4rem;
+}
+
+/* --------------------------------------------------------
+   유틸리티 (옵션)
+----------------------------------------------------------- */
+.text-center { text-align: center !important; }
+.mt-2  { margin-top:  0.5rem !important; }
+.mt-4  { margin-top:  1rem   !important; }
+.mb-2  { margin-bottom: 0.5rem !important; }
+.mb-4  { margin-bottom: 1rem   !important; }
+
+/* END OF FILE */
+
+/* AI Chatbot Styles */
+#aiChatbotInvokeButton {
+    /* position: fixed; bottom: 20px; right: 20px; */ /* Already set in HTML style attribute */
+    /* width: 60px; height: 60px; */ /* Already set in HTML style attribute */
+    /* border-radius: 50%; */ /* Already set in HTML style attribute */
+    /* background-color: #007bff; */ /* Already set in HTML style attribute */
+    /* color: white; */ /* Already set in HTML style attribute */
+    /* font-size: 24px; */ /* Already set in HTML style attribute, consider removing from here if style attr is primary */
+    /* border: none; */ /* Already set in HTML style attribute */
+    /* cursor: pointer; */ /* Already set in HTML style attribute */
+    /* z-index: 1000; */ /* Already set in HTML style attribute */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Additive style */
+}
+
+#aiChatbotModal {
+    /* display: none; */ /* Already set in HTML style attribute, managed by JS */
+    /* position: fixed; top: 0; left: 0; width: 100%; height: 100%; */ /* Already set in HTML style attribute */
+    /* background-color: rgba(0,0,0,0.5); */ /* Already set in HTML style attribute */
+    /* z-index: 1001; */ /* Already set in HTML style attribute */
+    /* justify-content: center; align-items: center; */ /* Already set in HTML style attribute */
+    /* These styles in the HTML are fine, but for consistency, could be moved here */
+}
+
+#aiChatbotModal > div { /* This is the modal content box */
+    /* background-color: white; padding: 20px; border-radius: 10px; */ /* Already set in HTML style attribute */
+    /* width: 80%; max-width: 500px; */ /* Already set in HTML style attribute */
+    /* display: flex; flex-direction: column; height: 90%; */ /* Already set in HTML style attribute */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* Additive style */
+}
+
+#aiChatbotCloseButton {
+    /* align-self: flex-end; background: none; border: none; font-size: 20px; cursor: pointer; */ /* Mostly set in HTML */
+    padding: 5px;
+    color: #777;
+    /* Ensure button reset doesn't override too much from global button style */
+    background: none !important;
+    font-size: 20px !important; /* Overriding global button font-size if necessary */
+    font-weight: bold !important; /* Making X more prominent */
+    color: #777 !important;
+}
+#aiChatbotCloseButton:hover {
+    color: #333 !important;
+    background: none !important;
+}
+
+#aiChatbotVideo {
+    /* width: 100%; height: 200px; background-color: #eee; margin-bottom: 10px; */ /* From HTML */
+    /* display: flex; justify-content: center; align-items: center; */ /* From HTML */
+    border-radius: 5px;
+    color: #555;
+}
+
+#aiChatbotChatbox {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    display: flex; /* To allow alignment of messages */
+    flex-direction: column; /* Stack messages vertically */
+}
+
+.ai-chatbot-message {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 15px;
+    max-width: 80%;
+    word-wrap: break-word;
+    line-height: 1.4; /* Improved readability */
+}
+
+.ai-user-message {
+    background-color: #007bff;
+    color: white;
+    align-self: flex-end; /* Aligns to the right */
+    border-bottom-right-radius: 5px;
+}
+
+.ai-bot-message {
+    background-color: #e9ecef;
+    color: #333;
+    align-self: flex-start; /* Aligns to the left */
+    border-bottom-left-radius: 5px;
+}
+
+#aiChatbotInputContainer {
+    display: flex;
+    margin-top: auto;
+}
+
+#aiChatbotInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    /* font-size will be inherited due to body.font-* !important */
+}
+
+#aiChatbotSendButton {
+    /* padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; margin-left: 5px; cursor: pointer; */ /* From HTML */
+    padding: 10px 15px; /* Adjusted padding slightly */
+    /* font-size will be inherited */
+    /* background-color from global button, or override if needed */
+    /* color from global button */
+}
+#aiChatbotSendButton:hover {
+    background-color: #0056b3; /* Global button hover is #1f6fe0, this is a bit darker */
+}
+
+/* Potentially for STT/TTS status or other messages */
+.ai-chatbot-status {
+    /* font-size: 0.9em !important; */ /* Will inherit, !important might be too strong */
+    color: #666;
+    text-align: center;
+    padding: 5px 0;
+    min-height: 1.5em; /* Reserve space */
+}
+
+/* Canvas for video capture if used, initially hidden */
+#chatbotCaptureCanvas {
+    display: none;
+}

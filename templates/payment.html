@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}수납{% endblock %}
+{% block content %}
+  {% if step == 'input' %}
+    <h2>개인정보 입력</h2>
+    <form method="post">
+      <input type="hidden" name="step" value="input" />
+      <label>이름: <input type="text" name="name" required /></label><br />
+      <button type="submit">다음</button>
+    </form>
+  {% elif step == 'pay' %}
+    <h2>결제</h2>
+    <form method="post">
+      <input type="hidden" name="step" value="pay" />
+      <label><input type="radio" name="pay_method" value="cash" /> 현금</label><br />
+      <label><input type="radio" name="pay_method" value="card" /> 카드</label><br />
+      <label><input type="radio" name="pay_method" value="qr" /> QR결제</label><br />
+      <button type="submit">결제 완료</button>
+    </form>
+  {% elif step == 'complete' %}
+    <h2>처방약 목록</h2>
+    <ul>
+      <li>감기약 1개</li>
+      <li>소화제 2개</li>
+    </ul>
+    <p>복약 방법: 하루 3회 식후 복용</p>
+    <button onclick="location.href='/'">홈으로</button>
+  {% endif %}
+{% endblock %}

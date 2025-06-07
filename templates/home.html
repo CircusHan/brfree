@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ locale.get('home_title', '보건소 키오스크') }}{% endblock %}
+
+{% block content %}
+<!-- ★ 첫 화면 로드 시 음성 자동 재생 -->
+<audio id="welcome-audio" src="{{ audio_url }}" autoplay></audio>
+
+<div class="home-container" style="display:flex; flex-direction:column; align-items:center; margin-top:50px;">
+    <!-- 로고 + 제목 -->
+    <div class="logo-and-title" style="display:flex; align-items:center; margin-bottom:30px;">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="보건소 로고"
+             style="width:120px; height:auto; margin-right:20px;">
+        <h1 style="font-size:2.5rem; margin:0;">{{ locale.get('home_title', '보건소에 오신 것을 환영합니다') }}</h1>
+    </div>
+
+    <!-- 버튼 그룹 -->
+    <div class="button-group" style="display:flex; flex-direction:column; gap:20px; align-items:center;">
+        <button onclick="location.href='{{ url_for('reception.reception') }}'" style="background-color:skyblue; color:white; font-size:1.5rem; padding:15px 40px; border:none; border-radius:8px; cursor:pointer; width:300px;">
+            {{ locale.get('btn_checkin', '① 접수(순번표)') }}
+        </button>
+        <button onclick="location.href='{{ url_for('payment.payment') }}'" style="background-color:skyblue; color:white; font-size:1.5rem; padding:15px 40px; border:none; border-radius:8px; cursor:pointer; width:300px;">
+            {{ locale.get('btn_payment', '② 수납') }}
+        </button>
+        <button onclick="location.href='{{ url_for('certificate.certificate') }}'" style="background-color:skyblue; color:white; font-size:1.5rem; padding:15px 40px; border:none; border-radius:8px; cursor:pointer; width:300px;">
+            {{ locale.get('btn_certificate', '③ 증명서 발급') }}
+        </button>
+    </div>
+</div>
+
+<!-- (선택) 브라우저 자동재생 제한 우회용: 실패 시 첫 클릭에 재생 -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const audio = document.getElementById('welcome-audio');
+        if (audio && audio.paused) {
+            const resumePlay = () => {
+                audio.play().catch(() => {/* ignore */});
+                document.removeEventListener('click', resumePlay);
+            };
+            document.addEventListener('click', resumePlay, { once: true });
+        }
+    });
+</script>
+{% endblock %}
