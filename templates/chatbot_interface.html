@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% block title %}AI 챗봇 상담{% endblock %}
+
+{% block content %}
+<style>
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        max-width: 800px;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+    }
+    #webcamFeed {
+        width: 100%;
+        max-width: 400px;
+        height: auto;
+        display: block;
+        margin: 10px auto;
+        border: 1px solid black;
+        border-radius: 4px;
+    }
+    #chatHistory {
+        height: 400px;
+        overflow-y: auto;
+        padding: 15px;
+        border-top: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        background-color: #f9f9f9;
+        display: flex;
+        flex-direction: column;
+    }
+    .message {
+        margin-bottom: 12px;
+        padding: 10px 15px;
+        border-radius: 18px;
+        max-width: 75%;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+    .user-message {
+        background-color: #DCF8C6;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+    .bot-message {
+        background-color: #E9E9EB;
+        align-self: flex-start;
+        margin-right: auto;
+    }
+    .input-area {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        background-color: #fff;
+    }
+    #userInput {
+        flex-grow: 1;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        margin-right: 8px;
+        font-size: 1rem;
+    }
+    .chat-btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 20px;
+        background-color: skyblue;
+        color: white;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-left: 5px;
+        transition: background-color 0.2s ease;
+    }
+    .chat-btn:hover {
+        background-color: #007bff;
+    }
+    #toggleMicBtn.recording {
+        background-color: #ff4136; /* Red when recording */
+    }
+    #inputControls {
+        padding:10px;
+        text-align:center;
+        border-top: 1px solid #eee;
+    }
+    #capturedImagePreview {
+        display: none;
+        max-width: 100px;
+        max-height: 100px;
+        margin-top: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        vertical-align: middle;
+    }
+    #captureImageBtn {
+        /* Made visible for testing as requested */
+        display: inline-block;
+        margin-right: 10px;
+    }
+    .error-message {
+        color: red;
+        font-size: 0.9em;
+        padding: 5px 15px;
+    }
+</style>
+
+<div class="chat-container">
+    <h1 style="text-align: center; padding: 15px; margin:0; background-color:skyblue; color:white; font-size:1.8rem;">AI 챗봇 상담</h1>
+
+    <video id="webcamFeed" autoplay playsinline muted></video> <!-- Added muted to avoid feedback loop if mic is open -->
+
+    <div id="inputControls">
+        <button id="captureImageBtn" class="chat-btn">이미지 첨부</button>
+        <img id="capturedImagePreview" src="#" alt="Captured Image Preview">
+    </div>
+
+    <div id="chatHistory">
+        <!-- Messages will be appended here by JavaScript -->
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="메시지를 입력하세요...">
+        <button id="sendMessageBtn" class="chat-btn">전송</button>
+        <button id="toggleMicBtn" class="chat-btn">음성 입력</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Element References
+        const webcamFeed = document.getElementById('webcamFeed');
+        const chatHistory = document.getElementById('chatHistory');
+        const userInput = document.getElementById('userInput');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+        const toggleMicBtn = document.getElementById('toggleMicBtn');
+        const captureImageBtn = document.getElementById('captureImageBtn');
+        const capturedImagePreview = document.getElementById('capturedImagePreview');
+
+        let currentStream = null;
+        let capturedBase64ImageData = null;
+
+        // 2. Webcam Access
+        async function setupWebcam() {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); // Audio false to avoid feedback
+                    webcamFeed.srcObject = stream;
+                    currentStream = stream;
+                    // Make capture button visible if webcam is on
+                    // captureImageBtn.style.display = 'inline-block'; // Already made visible for testing
+                } else {
+                    console.error('getUserMedia not supported on this browser!');
+                    appendMessage('system', '웹캠을 사용할 수 없습니다. 브라우저 설정을 확인해주세요.');
+                }
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+                appendMessage('system', '웹캠 접근에 실패했습니다. 권한을 확인해주세요.');
+                // captureImageBtn.style.display = 'none';
+            }
+        }
+
+        // 3. Speech Recognition (Web Speech API)
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isRecognizing = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // Process single utterances
+            recognition.lang = 'ko-KR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                isRecognizing = true;
+                toggleMicBtn.textContent = '음성 인식 중...';
+                toggleMicBtn.classList.add('recording');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                userInput.value = transcript;
+                // Optionally auto-send:
+                // sendMessageBtn.click();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                let errorMsg = '음성 인식 중 오류가 발생했습니다.';
+                if (event.error === 'no-speech') {
+                    errorMsg = '음성이 감지되지 않았습니다. 다시 시도해주세요.';
+                } else if (event.error === 'audio-capture') {
+                    errorMsg = '마이크 접근에 실패했습니다. 마이크 설정을 확인해주세요.';
+                } else if (event.error === 'not-allowed') {
+                    errorMsg = '음성 인식 권한이 거부되었습니다. 설정을 확인해주세요.';
+                }
+                appendMessage('system', errorMsg);
+            };
+
+            recognition.onend = () => {
+                isRecognizing = false;
+                toggleMicBtn.textContent = '음성 입력';
+                toggleMicBtn.classList.remove('recording');
+            };
+
+            toggleMicBtn.addEventListener('click', () => {
+                if (!isRecognizing) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Recognition start error:", e);
+                        appendMessage('system', '음성 인식을 시작할 수 없습니다.');
+                    }
+                } else {
+                    recognition.stop();
+                }
+            });
+        } else {
+            toggleMicBtn.disabled = true;
+            toggleMicBtn.textContent = '음성인식X';
+            appendMessage('system', '이 브라우저에서는 음성 인식을 지원하지 않습니다.');
+        }
+
+        // 4. Sending Messages (Text and Image)
+        async function sendMessage(messageText, base64ImageData = null) {
+            const textToSend = messageText.trim();
+            if (!textToSend && !base64ImageData) {
+                return;
+            }
+
+            if (textToSend) {
+                appendMessage('user', textToSend);
+            }
+            userInput.value = '';
+
+            const payload = { message: textToSend };
+            if (base64ImageData) {
+                payload.base64_image_data = base64ImageData;
+                // Display image sent by user if needed, or rely on chat history for text
+                if (!textToSend) appendMessage('user', '[이미지 전송됨]');
+            }
+
+            sendMessageBtn.disabled = true;
+            sendMessageBtn.textContent = '전송 중...';
+
+            try {
+                const response = await fetch("{{ url_for('chatbot.handle_chatbot_request') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ reply: `서버 오류: ${response.status}` }));
+                    throw new Error(errorData.reply || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                appendMessage('bot', data.reply);
+                speak(data.reply);
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                appendMessage('system', `메시지 전송 실패: ${error.message || '알 수 없는 오류'}`);
+            } finally {
+                sendMessageBtn.disabled = false;
+                sendMessageBtn.textContent = '전송';
+                // Clear captured image after sending
+                if (base64ImageData) {
+                    capturedBase64ImageData = null;
+                    capturedImagePreview.style.display = 'none';
+                    capturedImagePreview.src = '#';
+                }
+            }
+        }
+
+        sendMessageBtn.addEventListener('click', () => {
+            sendMessage(userInput.value, capturedBase64ImageData);
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(userInput.value, capturedBase64ImageData);
+            }
+        });
+
+        // Image Capture
+        captureImageBtn.addEventListener('click', () => {
+            if (!currentStream || !webcamFeed.srcObject) {
+                appendMessage('system', '웹캠이 활성화되지 않아 이미지를 캡처할 수 없습니다.');
+                return;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = webcamFeed.videoWidth;
+            canvas.height = webcamFeed.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(webcamFeed, 0, 0, canvas.width, canvas.height);
+
+            capturedBase64ImageData = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG, quality 0.9
+            capturedImagePreview.src = capturedBase64ImageData;
+            capturedImagePreview.style.display = 'inline-block';
+            appendMessage('system', '이미지가 첨부되었습니다. 메시지와 함께 전송하세요.');
+        });
+
+
+        // 5. Displaying Messages
+        function appendMessage(sender, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender === 'user' ? 'user-message' : (sender === 'bot' ? 'bot-message' : 'system-message'));
+
+            // Sanitize text before adding to innerHTML to prevent XSS if text can contain HTML
+            // For simplicity, using innerText here. If HTML is needed, use a sanitizer.
+            messageDiv.innerText = text;
+
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // 6. Speech Synthesis (Web Speech API)
+        function speak(text) {
+            if (!text || typeof text !== 'string' || text.trim() === '') {
+                console.warn("Speak function called with empty or invalid text.");
+                return;
+            }
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1.0; // Normal rate
+                utterance.pitch = 1.0; // Normal pitch
+
+                // Ensure voices are loaded, then speak
+                let voices = speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                    if (koreanVoice) {
+                        utterance.voice = koreanVoice;
+                    }
+                    speechSynthesis.speak(utterance);
+                } else {
+                    // Fallback if voices not loaded immediately (common issue)
+                    speechSynthesis.onvoiceschanged = () => {
+                        voices = speechSynthesis.getVoices();
+                        const koreanVoice = voices.find(voice => voice.lang === 'ko-KR');
+                        if (koreanVoice) {
+                            utterance.voice = koreanVoice;
+                        }
+                        speechSynthesis.speak(utterance);
+                        speechSynthesis.onvoiceschanged = null; // Remove listener after use
+                    };
+                     // Attempt to speak anyway, some browsers might queue it
+                    speechSynthesis.speak(utterance);
+                }
+                 utterance.onerror = (event) => {
+                    console.error("Speech synthesis error:", event.error);
+                    appendMessage('system', '음성 안내 중 오류가 발생했습니다.');
+                };
+            } else {
+                console.warn('Speech Synthesis not supported on this browser.');
+            }
+        }
+
+        // 7. Initial Setup
+        setupWebcam();
+        const initialBotMessage = "안녕하세요! 늘봄이입니다. 무엇을 도와드릴까요?";
+        appendMessage('bot', initialBotMessage);
+        // Speak after a slight delay to allow user interaction/page loading
+        setTimeout(() => speak(initialBotMessage), 500);
+
+    });
+</script>
+{% endblock %}

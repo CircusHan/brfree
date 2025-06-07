@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 import base64
 from io import BytesIO
 # PIL might be needed for image validation or manipulation, but not directly for API call if blobs are correct
@@ -150,3 +150,8 @@ def handle_chatbot_request():
 # Example of how to register this blueprint in app/__init__.py:
 # from .routes.chatbot import chatbot_bp
 # app.register_blueprint(chatbot_bp)
+
+@chatbot_bp.route('/interface')
+def chatbot_interface():
+    """Renders the chatbot interface page."""
+    return render_template("chatbot_interface.html")
