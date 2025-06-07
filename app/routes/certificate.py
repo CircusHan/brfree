@@ -21,6 +21,7 @@ BASE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 )
 TREATMENT_FEES_CSV = os.path.join(BASE_DIR, "data", "treatment_fees.csv")
+RESERVATIONS_CSV = os.path.join(BASE_DIR, "data", "reservations.csv")
 
 # Helper function to load prescription data
 def _load_prescription_data(department: str) -> dict | None:
@@ -87,6 +88,28 @@ def generate_prescription_pdf():
         # Potentially pass an error message to reception or a general error page
         return redirect(url_for("reception.reception", error="department_info_missing"))
 
+    # Payment verification logic
+    payment_status_verified = False
+    if patient_rrn: # Ensure RRN is available
+        try:
+            with open(RESERVATIONS_CSV, 'r', newline='', encoding='utf-8-sig') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    if row.get("rrn") == patient_rrn:
+                        if row.get("payment_status") == "Paid":
+                            payment_status_verified = True
+                        break # Found patient's record
+        except FileNotFoundError:
+            # app.logger.error(f"Reservations CSV file not found: {RESERVATIONS_CSV}")
+            return redirect(url_for("payment.payment", error="system_error_reservations_missing"))
+        except Exception as e:
+            # app.logger.error(f"Error reading reservations CSV: {e}")
+            return redirect(url_for("payment.payment", error="system_error_csv_access"))
+
+    if not payment_status_verified:
+        session['payment_complete'] = False # Sync session state
+        return redirect(url_for("payment.payment", error="payment_not_completed"))
+
     # Try to use prescription data stored during the payment step
     last_prescriptions = session.get("last_prescriptions")
     last_total_fee = session.get("last_total_fee")
@@ -150,6 +173,28 @@ def generate_confirmation_pdf():
 
     if not department: # Department is essential for "병명"
         return redirect(url_for("reception.reception", error="department_info_missing_for_confirmation"))
+
+    # Payment verification logic
+    payment_status_verified = False
+    if patient_rrn: # Ensure RRN is available
+        try:
+            with open(RESERVATIONS_CSV, 'r', newline='', encoding='utf-8-sig') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    if row.get("rrn") == patient_rrn:
+                        if row.get("payment_status") == "Paid":
+                            payment_status_verified = True
+                        break # Found patient's record
+        except FileNotFoundError:
+            # app.logger.error(f"Reservations CSV file not found: {RESERVATIONS_CSV}")
+            return redirect(url_for("payment.payment", error="system_error_reservations_missing"))
+        except Exception as e:
+            # app.logger.error(f"Error reading reservations CSV: {e}")
+            return redirect(url_for("payment.payment", error="system_error_csv_access"))
+
+    if not payment_status_verified:
+        session['payment_complete'] = False # Sync session state
+        return redirect(url_for("payment.payment", error="payment_not_completed"))
 
     # Generate PDF
     try:
