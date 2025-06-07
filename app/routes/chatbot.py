@@ -69,8 +69,8 @@ def process_rrn_reception(user_message, ai_response_text):
         rrn = None
 
         # Attempt to parse Name and RRN from AI response
-        name_match_ai = re.search(r"이름:\s*([가-힣]{2,10})", ai_response_text) # Adjusted length for name
-        rrn_match_ai = re.search(r"주민번호:\s*(\d{6}-\d{7})", ai_response_text)
+        name_match_ai = re.search(r"(?:이름|성함)[\s:]*([가-힣]{2,10})", ai_response_text)  # Allow '성함' and optional colon
+        rrn_match_ai = re.search(r"주민번호[\s:]*(\d{6}-\d{7})", ai_response_text)
 
         if name_match_ai and rrn_match_ai:
             name = name_match_ai.group(1)
@@ -168,17 +168,25 @@ def process_rrn_payment(user_message, ai_response_text):
     if not session.get('reception_complete'):
         return "접수를 먼저 완료해주세요. 접수 완료 후 수납을 진행할 수 있습니다."
 
-    name_match_ai = re.search(r"이름:\s*([가-힣]{2,10})", ai_response_text)
-    rrn_match_ai = re.search(r"주민번호:\s*(\d{6}-\d{7})", ai_response_text)
+    name_match_ai = re.search(r"(?:이름|성함)[\s:]*([가-힣]{2,10})", ai_response_text)
+    rrn_match_ai = re.search(r"주민번호[\s:]*(\d{6}-\d{7})", ai_response_text)
 
     name = name_match_ai.group(1) if name_match_ai else None
     rrn = rrn_match_ai.group(1) if rrn_match_ai else None
 
-    if not name or not rrn: # Fallback to user_message
+    if not name or not rrn:  # Fallback to user message
         name_match_user = re.search(r"([가-힣]{2,10})", user_message)
         rrn_match_user = re.search(r"(\d{6}-\d{7})", user_message)
-        if not name and name_match_user: name = name_match_user.group(1)
-        if not rrn and rrn_match_user: rrn = rrn_match_user.group(1)
+        if not name and name_match_user:
+            name = name_match_user.group(1)
+        if not rrn and rrn_match_user:
+            rrn = rrn_match_user.group(1)
+
+    # Final fallback to session data if previous attempts failed
+    if not name:
+        name = session.get('patient_name')
+    if not rrn:
+        rrn = session.get('patient_rrn')
 
     if not name or not rrn:
         # AI indicated intent, but couldn't extract. AI should ask for info.
