@@ -67,11 +67,11 @@ def load_prescriptions():
 
     prescriptions_for_dept = []
     try:
-        with open(TREATMENT_FEES_CSV, newline='', encoding='utf-8') as f:
+        with open(TREATMENT_FEES_CSV, newline='', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for row in reader:
                 if row["Department"].strip() == department:
-                    prescriptions_for_dept.append({"Prescription": row["Treatment"], "Fee": float(row["Fee"])})
+                    prescriptions_for_dept.append({"Prescription": row["Prescription"], "Fee": float(row["Fee"])})
     except Exception as e:
         # Log the error e
         return jsonify({"error": "Error processing treatment fees data"}), 500
