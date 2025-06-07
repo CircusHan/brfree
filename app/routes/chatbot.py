@@ -43,9 +43,10 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 - 보건소 업무와 관련 없는 농담이나 사적인 대화는 지양합니다.
 - 개인정보를 요청하거나 저장하지 마십시오.
 - **세션 관리 및 사용자 안내:**
-    - 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하고, 시스템이 해당 정보를 성공적으로 처리하여 `[RRN_RECEPTION_INTENT]` 태그와 함께 이름 및 주민등록번호를 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 접수/예약 정보를 사용자에게 확인시켜 주는 것입니다. 그 후, "예약 내역(또는 접수 내용)을 확인해드렸습니다. 다음 단계인 수납을 진행하시려면 '수납' 또는 '결제'라고 말씀해주세요."와 같이 명확하게 다음 행동을 안내해야 합니다. 시스템이 접수 정보를 표시하는 것만으로는 '접수 완료' 상태로 자동 진행되지 않음을 인지해야 합니다.
+    - **접수 완료 후 안내**: 만약 `process_rrn_reception` 파이썬 함수가 성공적으로 실행되어 사용자에게 예약 정보(예: 환자 이름, 진료과, 예약 시간 등) 또는 증상 기반 접수 결과를 반환했다면, 이것은 '접수' 단계가 시스템 상 완료되었음을 의미합니다. 당신은 이 정보를 바탕으로 사용자에게 "네, [환자이름]님의 예약이 확인되어 접수가 완료되었습니다. 진료과 [진료과], 시간 [예약시간]입니다. 다음으로 수납을 진행하시겠습니까?" 또는 증상 접수의 경우 "네, [환자이름]님, [증상] 증상으로 [진료과] 접수가 완료되었습니다. 다음으로 수납을 진행하시겠습니까?" 와 같이 접수가 완료되었음을 명확히 알리고, 이어서 수납 진행 여부를 질문해야 합니다.
+    - 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하는 경우, 이를 `[RRN_RECEPTION_INTENT]`로 간주하고, 시스템이 이름과 주민등록번호를 추출하여 접수 처리를 시도할 수 있도록 해당 태그와 정보를 응답에 포함해야 합니다. (예: "성함 [이름], 주민등록번호 [주민번호]로 접수를 도와드릴까요? [RRN_RECEPTION_INTENT]")
     - 사용자가 수납/결제를 요청하고, 시스템이 `[RRN_PAYMENT_INTENT]` 태그와 함께 이름, 주민등록번호, 그리고 처방내역 및 예상 비용을 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 처방내역과 예상 비용을 사용자에게 안내하는 것입니다. 그 후, "처방내역과 예상 비용은 위와 같습니다. 화면의 안내에 따라 결제를 완료해주세요. 결제가 끝나면 증명서 발급 등 다음 서비스를 이용하실 수 있습니다."와 같이 사용자가 화면에서 실제 결제를 완료해야 다음 단계로 진행할 수 있음을 안내해야 합니다.
-- 일반적으로 사용자가 명시적으로 다음 단계(예: '수납', '처방전 발급')를 요청하기 전까지는 해당 기능의 실행을 가정하거나 먼저 제안하지 마십시오. 사용자의 요청에 따라 기능을 안내하고, 필요한 경우 관련 정보를 요청합니다.
+- 일반적으로 사용자가 명시적으로 다음 단계(예: '수납', '처방전 발급', 또는 상태 확인 요청)를 요청하기 전까지는 해당 기능의 실행을 가정하거나 먼저 제안하지 마십시오. 사용자의 요청에 따라 기능을 안내하고, 필요한 경우 관련 정보를 요청합니다.
 - 사용자가 이름과 주민등록번호로 접수를 요청하는 것으로 판단되면, 응답에 `[RRN_RECEPTION_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 접수를 진행하시겠습니까? [RRN_RECEPTION_INTENT]")
 - 사용자가 이름과 주민등록번호를 사용하여 수납 또는 결제를 요청하는 것으로 판단되면, 응답에 `[RRN_PAYMENT_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 수납을 진행하시겠습니까? [RRN_PAYMENT_INTENT]")
 - 정치적, 종교적 또는 논란의 여지가 있는 주제에 대해서는 중립적인 입장을 취하거나 답변을 정중히 거절합니다. ("죄송하지만, 해당 질문에 대해서는 답변드리기 어렵습니다.")
@@ -98,10 +99,21 @@ def process_rrn_reception(user_message, ai_response_text):
             try:
                 # Assuming lookup_reservation is imported and works as expected
                 # It might need the full path to CSV if not handled within lookup_reservation itself
-                details = lookup_reservation(name, rrn)
+                details = lookup_reservation(name, rrn) # Imported from app.routes.reception
                 if details:
+                    # Set session variables as if reception was done via web UI
+                    session['reception_complete'] = True
+                    session['payment_complete'] = False # Reset payment status
+                    session['patient_name'] = name
+                    session['patient_rrn'] = rrn
+                    session['department'] = details.get('department')
+                    # session['time'] = details.get('time') # Optional: Store if needed later
+                    # session['location'] = details.get('location') # Optional: Store if needed later
+                    # session['doctor'] = details.get('doctor') # Optional: Store if needed later
+
                     return f"성함 {name} 님, 예약이 확인되었습니다. 진료과: {details['department']}, 예약시간: {details['time']}, 위치: {details['location']}, 담당 의사: {details['doctor']} 입니다."
                 else:
+                    # No reservation found - do not set reception_complete.
                     return f"성함 {name}, 주민등록번호 {rrn} 님, 확인된 예약 내역이 없습니다. 증상으로 접수하시겠습니까?"
             except Exception as e:
                 # Log the error for server-side review: print(f"Error in lookup_reservation: {e}")
