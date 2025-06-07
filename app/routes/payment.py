@@ -30,7 +30,14 @@ def payment():
     """
     department = session.get("department")
     if not department:
+        # If reception is not done, redirect. This also implies payment can't be complete.
+        session['payment_complete'] = False # Explicitly set here
         return redirect(url_for("reception.reception"))
+
+    if request.method == "GET":
+        # When first loading the payment page for a valid user
+        session['payment_complete'] = False # Reset if they are just landing here
+        return render_template("payment.html", step="initial_payment", department=department)
 
     if request.method == "POST":
         patient_id = request.form.get("patient_id", "").strip()
@@ -109,6 +116,7 @@ def done():
     if record is None:
         return redirect(url_for("payment.payment"))
 
+    session['payment_complete'] = True
     return render_template(
         "payment.html",
         step="done",
