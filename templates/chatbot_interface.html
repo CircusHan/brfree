@@ -357,7 +357,7 @@
                         speechSynthesis.onvoiceschanged = null; // Remove listener after use
                     };
                      // Attempt to speak anyway, some browsers might queue it
-                    speechSynthesis.speak(utterance);
+                    
                 }
                  utterance.onerror = (event) => {
                     console.error("Speech synthesis error:", event.error);
