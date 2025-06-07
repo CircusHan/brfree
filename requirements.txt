@@ -2,3 +2,4 @@ Flask>=2.2
 gTTS>=2.3
 google-generativeai
 Pillow
+fpdf2>=2.7.0
