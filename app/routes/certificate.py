@@ -32,12 +32,12 @@ def _load_prescription_data(department: str) -> dict | None:
 
     department_prescriptions = []
     try:
-        with open(TREATMENT_FEES_CSV, newline="", encoding="utf-8") as csvfile:
+        with open(TREATMENT_FEES_CSV, newline="", encoding="utf-8-sig") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                if row["department"].strip() == department:
+                if row["Department"].strip() == department:
                     department_prescriptions.append(
-                        {"name": row["item_name"], "fee": int(row["fee"])}
+                        {"name": row["Prescription"], "fee": int(row["Fee"])}
                     )
     except Exception as e:
         print(f"Error reading or parsing {TREATMENT_FEES_CSV}: {e}")
