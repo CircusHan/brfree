@@ -206,6 +206,10 @@ def process_rrn_payment(user_message, ai_response_text):
     prescriptions_string = ", ".join(presc_texts)
     total_fee_string = f"{payment_info['total_fee']:,.0f}"
 
+    # Mark that the chatbot is waiting for the user to confirm the payment
+    # This flag is checked in handle_chatbot_request before invoking Gemini.
+    session['awaiting_payment_confirmation'] = True
+
     return f"성함 {name} 님 ({department} 진료), 예상 수납 정보입니다. 처방내역: {prescriptions_string}. 총 예상 금액은 {total_fee_string}원 입니다. 결제를 진행하시겠습니까?"
 
 
@@ -336,6 +340,27 @@ def process_user_confirmed_payment(user_message, ai_response_text):
 
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON request"}), 400
+
+    user_question = data.get('message')
+    base64_image_data = data.get('base64_image_data')  # Optional
+
+    if not user_question:
+        return jsonify({"error": "No message (user_question) provided"}), 400
+
+    # Handle simple payment confirmations without calling Gemini
+    if session.get('awaiting_payment_confirmation'):
+        confirmation_terms = ["네", "예", "수납해줘", "결제해줘"]
+        clean_msg = user_question.strip()
+        if any(term in clean_msg for term in confirmation_terms):
+            patient_rrn = session.get('patient_rrn')
+            if update_payment_status_in_csv(patient_rrn):
+                session['payment_complete'] = True
+            session.pop('awaiting_payment_confirmation', None)
+            return jsonify({"reply": "수납이 완료되었습니다.", "audio_confirmation_url": "/static/audio/payment_completed.mp3"})
+
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return jsonify({"error": "API key not configured"}), 500
@@ -346,17 +371,7 @@ def handle_chatbot_request():
         # This could catch issues with the API key format or other genai config errors
         return jsonify({"error": f"Failed to configure Generative AI: {str(e)}"}), 500
 
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Invalid JSON request"}), 400
-
-    user_question = data.get('message')
-    base64_image_data = data.get('base64_image_data') # Optional
-
-    if not user_question:
-        return jsonify({"error": "No message (user_question) provided"}), 400
-
-    model_name = "gemini-1.5-flash-latest" # Or whichever model Kiosk2 used / is preferred
+    model_name = "gemini-1.5-flash-latest"  # Or whichever model Kiosk2 used / is preferred
     model = genai.GenerativeModel(model_name)
 
     prompt_parts = [SYSTEM_INSTRUCTION_PROMPT, "\n\n사용자 질문:\n"]
