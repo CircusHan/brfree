@@ -15,6 +15,7 @@ chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/api') # Added url_prefi
 # Path for treatment_fees.csv, assuming chatbot.py is in app/routes/
 CHATBOT_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 TREATMENT_FEES_CSV_PATH = os.path.join(CHATBOT_BASE_DIR, "data", "treatment_fees.csv")
+RESERVATIONS_CSV_PATH = os.path.join(CHATBOT_BASE_DIR, "data", "reservations.csv")
 
 
 # System Prompt / Instructions for the Gemini Model (Synthesized from Kiosk2 context)
@@ -45,7 +46,8 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 - **세션 관리 및 사용자 안내:**
     - **접수 완료 후 안내**: 만약 `process_rrn_reception` 파이썬 함수가 성공적으로 실행되어 사용자에게 예약 정보(예: 환자 이름, 진료과, 예약 시간 등) 또는 증상 기반 접수 결과를 반환했다면, 이것은 '접수' 단계가 시스템 상 완료되었음을 의미합니다. 당신은 이 정보를 바탕으로 사용자에게 "네, [환자이름]님의 예약이 확인되어 접수가 완료되었습니다. 진료과 [진료과], 시간 [예약시간]입니다. 다음으로 수납을 진행하시겠습니까?" 또는 증상 접수의 경우 "네, [환자이름]님, [증상] 증상으로 [진료과] 접수가 완료되었습니다. 다음으로 수납을 진행하시겠습니까?" 와 같이 접수가 완료되었음을 명확히 알리고, 이어서 수납 진행 여부를 질문해야 합니다.
     - 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하는 경우, 이를 `[RRN_RECEPTION_INTENT]`로 간주하고, 시스템이 이름과 주민등록번호를 추출하여 접수 처리를 시도할 수 있도록 해당 태그와 정보를 응답에 포함해야 합니다. (예: "성함 [이름], 주민등록번호 [주민번호]로 접수를 도와드릴까요? [RRN_RECEPTION_INTENT]")
-    - 사용자가 수납/결제를 요청하고, 시스템이 `[RRN_PAYMENT_INTENT]` 태그와 함께 이름, 주민등록번호, 그리고 처방내역 및 예상 비용을 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 처방내역과 예상 비용을 사용자에게 안내하는 것입니다. 그 후, "처방내역과 예상 비용은 위와 같습니다. 화면의 안내에 따라 결제를 완료해주세요. 결제가 끝나면 증명서 발급 등 다음 서비스를 이용하실 수 있습니다."와 같이 사용자가 화면에서 실제 결제를 완료해야 다음 단계로 진행할 수 있음을 안내해야 합니다.
+    - 사용자가 수납/결제를 요청하고, 시스템이 `[RRN_PAYMENT_INTENT]` 태그와 함께 이름, 주민등록번호, 그리고 처방내역 및 예상 비용을 응답에 포함해야 할 경우: 당신의 역할은 시스템이 제공한 처방내역과 예상 비용을 사용자에게 안내하는 것입니다. 그 후, "처방내역과 예상 비용은 위와 같습니다. 결제를 진행하시겠습니까?" 라고 질문해야 합니다.
+    - 사용자가 이전 단계에서 "결제를 진행하시겠습니까?" 라는 질문에 "네" 또는 긍정적으로 답변하는 경우, 이를 결제 확정 의사로 간주하고, 응답에 `[USER_CONFIRMED_PAYMENT_INTENT]` 라는 특수 태그를 포함하여 "수납이 완료되었습니다." 라고 응답해야 합니다.
 - 일반적으로 사용자가 명시적으로 다음 단계(예: '수납', '처방전 발급', 또는 상태 확인 요청)를 요청하기 전까지는 해당 기능의 실행을 가정하거나 먼저 제안하지 마십시오. 사용자의 요청에 따라 기능을 안내하고, 필요한 경우 관련 정보를 요청합니다.
 - 사용자가 이름과 주민등록번호로 접수를 요청하는 것으로 판단되면, 응답에 `[RRN_RECEPTION_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 접수를 진행하시겠습니까? [RRN_RECEPTION_INTENT]")
 - 사용자가 이름과 주민등록번호를 사용하여 수납 또는 결제를 요청하는 것으로 판단되면, 응답에 `[RRN_PAYMENT_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. (예: "성함 [이름], 주민등록번호 [주민번호]로 수납을 진행하시겠습니까? [RRN_PAYMENT_INTENT]")
@@ -257,6 +259,81 @@ def process_kiosk_status_check(user_message, ai_response_text):
             return "접수와 수납이 모두 완료되었습니다. 이제 증명서를 발급받으실 수 있습니다. 원하시는 증명서 종류를 말씀해주세요 (예: '처방전 발급' 또는 '진료확인서 발급')."
     return None
 
+def update_payment_status_in_csv(patient_rrn):
+    if not patient_rrn:
+        return False
+
+    expected_fieldnames = ['name', 'rrn', 'time', 'department', 'location', 'doctor', 'payment_status']
+
+    try:
+        rows = []
+        current_fieldnames = []
+
+        if not os.path.exists(RESERVATIONS_CSV_PATH):
+            with open(RESERVATIONS_CSV_PATH, 'w', newline='', encoding='utf-8') as file:
+                writer = csv.DictWriter(file, fieldnames=expected_fieldnames)
+                writer.writeheader()
+            return False # File created, but no specific patient row was updated
+
+        with open(RESERVATIONS_CSV_PATH, 'r', newline='', encoding='utf-8-sig') as file:
+            reader = csv.DictReader(file)
+            current_fieldnames = reader.fieldnames
+            if not current_fieldnames: # Handles empty file
+                current_fieldnames = list(expected_fieldnames) # Use a copy
+            rows = list(reader)
+
+        # Ensure 'payment_status' is in current_fieldnames and all rows
+        if 'payment_status' not in current_fieldnames:
+            current_fieldnames.append('payment_status')
+
+        made_row_changes = False
+        updated_target_patient = False
+        for row in rows:
+            if 'payment_status' not in row:
+                row['payment_status'] = 'Pending' # Default for existing rows missing the column
+                made_row_changes = True
+            if row.get("rrn") == patient_rrn:
+                if row.get("payment_status") != "Paid":
+                    row["payment_status"] = "Paid"
+                    made_row_changes = True
+                updated_target_patient = True
+
+        if made_row_changes: # Write if any row was changed (either target or adding column)
+            with open(RESERVATIONS_CSV_PATH, 'w', newline='', encoding='utf-8') as file:
+                writer = csv.DictWriter(file, fieldnames=current_fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            return updated_target_patient # True if the specific patient was marked Paid
+        return updated_target_patient # False if patient not found or already paid, and no other changes made to file structure
+    except Exception as e:
+        # print(f"Error updating payment status in CSV: {e}") # Consider logging this
+        return False
+
+def process_user_confirmed_payment(user_message, ai_response_text):
+    if "[USER_CONFIRMED_PAYMENT_INTENT]" in ai_response_text:
+        if not session.get('reception_complete'):
+            return "접수를 먼저 완료해주세요. 접수 완료 후 수납을 진행할 수 있습니다."
+
+        if session.get('payment_complete'):
+            return "이미 수납이 완료되었습니다. 증명서 발급 등 다음 서비스를 이용해주세요."
+
+        patient_rrn = session.get('patient_rrn')
+        if not patient_rrn:
+            return "환자 정보(주민등록번호)가 없어 수납 처리를 완료할 수 없습니다. 접수를 다시 진행해주세요."
+
+        if update_payment_status_in_csv(patient_rrn):
+            session['payment_complete'] = True
+            return None # Success, use AI's response ("수납이 완료되었습니다.")
+        else:
+            # Check if it failed because already paid vs actual error
+            # For now, a general error if update_payment_status_in_csv didn't result in a positive update confirmation
+            # or if the patient was not found.
+            # If update_payment_status_in_csv returns True only when it actively changed status to "Paid"
+            # or confirmed it is "Paid", this logic is okay.
+            # The refined update_payment_status_in_csv returns True if target patient is now "Paid".
+            return "수납 처리 중 오류가 발생했거나, 사용자 정보를 찾을 수 없어 완료하지 못했습니다. 직원에게 문의해주세요."
+    return None # No intent match
+
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
     api_key = os.getenv("GEMINI_API_KEY")
@@ -329,46 +406,53 @@ def handle_chatbot_request():
             return jsonify({"error": "No response generated", "reply": "죄송합니다. 현재 답변을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."}), 500
 
 
-        # Accessing .text directly is common, but Kiosk2 checks candidates
-        # Ensure there's at least one candidate and it has content
-        if not response.candidates[0].content.parts:
-             # Check if the candidate was blocked
-            finish_reason = response.candidates[0].finish_reason
-            if finish_reason == genai.types.Candidate.FinishReason.SAFETY:
-                safety_ratings_info = str(response.candidates[0].safety_ratings)
-                error_message = f"답변이 안전 설정에 의해 차단되었습니다. ({safety_ratings_info}). 다른 질문을 시도해주세요."
-                return jsonify({"error": "Response blocked by safety settings", "reply": error_message}), 400
-            elif finish_reason != genai.types.Candidate.FinishReason.STOP:
-                error_message = f"답변 생성 중 예상치 못한 이유로 중단되었습니다: {finish_reason.name}. 다른 질문을 시도해주세요."
+        # Ensure response.candidates[0].content.parts is safe to access
+        if not response.candidates or not response.candidates[0].content or not response.candidates[0].content.parts:
+            if response.prompt_feedback and response.prompt_feedback.block_reason:
+                # ... (handle prompt blocked) ...
+                error_message = f"요청이 안전 설정에 의해 차단되었습니다. 이유: {response.prompt_feedback.block_reason.name}."
+                return jsonify({"error": "Blocked by safety settings", "details": error_message, "reply": error_message}), 400
+            # This check should be more specific. If candidates exist but parts don't, it implies a non-STOP finish reason.
+            if response.candidates and response.candidates[0].finish_reason != genai.types.Candidate.FinishReason.STOP:
+                # ... (handle non-STOP finish reasons like SAFETY, RECITATION etc.) ...
+                error_message = f"답변 생성 중 예상치 못한 이유({response.candidates[0].finish_reason.name})로 중단되었습니다."
                 return jsonify({"error": "Response generation stopped", "reply": error_message}), 500
-
-            # If no safety block but also no parts (empty response)
+            # Default fallback if no parts for other reasons
             return jsonify({"reply": "죄송합니다. 질문에 대한 답변을 찾지 못했습니다."})
 
         bot_response_text = "".join(part.text for part in response.candidates[0].content.parts if hasattr(part, "text"))
 
-        # Attempt to process for certificate intents
-        prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
-        if prescription_cert_response:
-            if isinstance(prescription_cert_response, dict):
-                return jsonify(prescription_cert_response)
-            return jsonify({"reply": prescription_cert_response}) # For string error messages
-
-        medical_cert_response = process_medical_confirmation_request(user_question, bot_response_text)
-        if medical_cert_response:
-            if isinstance(medical_cert_response, dict):
-                return jsonify(medical_cert_response)
-            return jsonify({"reply": medical_cert_response}) # For string error messages
+        # Check for payment confirmation intent first
+        if "[USER_CONFIRMED_PAYMENT_INTENT]" in bot_response_text:
+            action_message = process_user_confirmed_payment(user_question, bot_response_text)
+            if action_message:
+                return jsonify({"reply": action_message})
+            # If action_message is None, backend processing was successful.
+            # bot_response_text (which should be "수납이 완료되었습니다.") will be used.
+            # So, we fall through to the end of the function to return jsonify({"reply": bot_response_text})
 
         # Attempt to process for RRN reception
         reception_response = process_rrn_reception(user_question, bot_response_text)
         if reception_response:
             return jsonify({"reply": reception_response})
 
-        # Attempt to process for RRN payment
-        payment_response = process_rrn_payment(user_question, bot_response_text)
-        if payment_response:
-            return jsonify({"reply": payment_response})
+        # Attempt to process for RRN payment (this is the initial query for payment details)
+        payment_query_response = process_rrn_payment(user_question, bot_response_text)
+        if payment_query_response:
+            return jsonify({"reply": payment_query_response})
+
+        # Attempt to process for certificate intents
+        prescription_cert_response = process_prescription_certificate_request(user_question, bot_response_text)
+        if prescription_cert_response:
+            if isinstance(prescription_cert_response, dict):
+                return jsonify(prescription_cert_response)
+            return jsonify({"reply": prescription_cert_response})
+
+        medical_cert_response = process_medical_confirmation_request(user_question, bot_response_text)
+        if medical_cert_response:
+            if isinstance(medical_cert_response, dict):
+                return jsonify(medical_cert_response)
+            return jsonify({"reply": medical_cert_response})
 
         # Attempt to process for Kiosk Status Check
         status_check_response = process_kiosk_status_check(user_question, bot_response_text)
