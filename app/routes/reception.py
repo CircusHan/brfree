@@ -87,6 +87,7 @@ def reception():
         if action == "choose_symptom":
             symptom    = request.form.get("symptom")
             department = SYM_TO_DEPT.get(symptom, "가정의학과")
+            session["department"] = department
             ticket     = new_ticket()
             session["ticket"] = ticket
             return render_template("reception.html", step="ticket",

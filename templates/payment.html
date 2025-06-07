@@ -1,14 +1,23 @@
 {% extends "base.html" %}
 {% block title %}수납{% endblock %}
 {% block content %}
-  {% if step == 'input' %}
+  {% if step == 'initial_payment' %}
+    <h2>수납 처방 선택</h2>
+    <p>선택된 진료과: {{ department }}</p>
+    <button id="loadPrescriptionsBtn">처방 불러오기</button>
+    <div id="prescriptionsArea"></div>
+    <div id="totalFeeArea"></div>
+    <button id="cashPaymentBtn" disabled>현금 결제</button>
+    <button id="cardPaymentBtn" disabled>카드 결제</button>
+
+  {% elif step == 'input' %} {# This block might be part of an old flow #}
     <h2>개인정보 입력</h2>
     <form method="post">
       <input type="hidden" name="step" value="input" />
       <label>이름: <input type="text" name="name" required /></label><br />
       <button type="submit">다음</button>
     </form>
-  {% elif step == 'pay' %}
+  {% elif step == 'pay' %} {# This block might be part of an old flow #}
     <h2>결제</h2>
     <form method="post">
       <input type="hidden" name="step" value="pay" />
@@ -17,13 +26,132 @@
       <label><input type="radio" name="pay_method" value="qr" /> QR결제</label><br />
       <button type="submit">결제 완료</button>
     </form>
-  {% elif step == 'complete' %}
-    <h2>처방약 목록</h2>
+  {% elif step == 'done' or step == 'complete' %} {# Consolidating 'done' from Python and 'complete' from HTML #}
+    <h2>결제 완료</h2>
+    <p>결제 ID: {{ pay_id }}</p>
+    <p>결제 금액: {{ amount }}원</p>
+    <p>결제 방법: {{ method }}</p>
+    <hr>
+    <h2>처방약 목록 (예시)</h2>
     <ul>
       <li>감기약 1개</li>
       <li>소화제 2개</li>
     </ul>
     <p>복약 방법: 하루 3회 식후 복용</p>
-    <button onclick="location.href='/'">홈으로</button>
+    <button onclick="location.href='{{ url_for('main.index') }}'">홈으로</button> {# Assuming 'main.index' is the home route #}
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const loadPrescriptionsBtn = document.getElementById('loadPrescriptionsBtn');
+    const cashPaymentBtn = document.getElementById('cashPaymentBtn');
+    const cardPaymentBtn = document.getElementById('cardPaymentBtn');
+    const prescriptionsArea = document.getElementById('prescriptionsArea');
+    const totalFeeArea = document.getElementById('totalFeeArea');
+    let currentTotalFee = 0;
+
+    if (loadPrescriptionsBtn) {
+        loadPrescriptionsBtn.addEventListener('click', function () {
+            fetch('/payment/load_prescriptions')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    prescriptionsArea.innerHTML = ''; // Clear previous content
+                    totalFeeArea.innerHTML = '';    // Clear previous content
+
+                    if (data.error) {
+                        prescriptionsArea.innerHTML = `<p>Error: ${data.error}</p>`;
+                        cashPaymentBtn.disabled = true;
+                        cardPaymentBtn.disabled = true;
+                        return;
+                    }
+
+                    if (data.prescriptions && data.prescriptions.length > 0) {
+                        data.prescriptions.forEach(p => {
+                            const pElement = document.createElement('p');
+                            pElement.textContent = `${p.Prescription}: ${p.Fee}원`;
+                            prescriptionsArea.appendChild(pElement);
+                        });
+                    } else {
+                        prescriptionsArea.innerHTML = '<p>선택된 진료과에 대한 처방 항목이 없습니다.</p>';
+                    }
+
+                    currentTotalFee = data.total_fee || 0;
+                    totalFeeArea.innerHTML = `<p>총 합계: ${currentTotalFee}원</p>`;
+
+                    if (currentTotalFee > 0) {
+                        cashPaymentBtn.disabled = false;
+                        cardPaymentBtn.disabled = false;
+                    } else {
+                        cashPaymentBtn.disabled = true;
+                        cardPaymentBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    prescriptionsArea.innerHTML = `<p>처방 불러오기 실패: ${error.message}</p>`;
+                    totalFeeArea.innerHTML = '';
+                    cashPaymentBtn.disabled = true;
+                    cardPaymentBtn.disabled = true;
+                });
+        });
+    }
+
+    function submitPayment(method, amount) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('payment.payment') }}"; // Ensure Flask's url_for is correctly rendered here by Jinja
+
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = 'method';
+        methodInput.value = method;
+        form.appendChild(methodInput);
+
+        const amountInput = document.createElement('input');
+        amountInput.type = 'hidden';
+        amountInput.name = 'amount';
+        amountInput.value = amount;
+        form.appendChild(amountInput);
+
+        // patient_id is required by the backend, but not available here yet.
+        // For now, let's add a placeholder or decide how to handle it.
+        // Adding a dummy patient_id for now. This should be properly handled.
+        const patientIdInput = document.createElement('input');
+        patientIdInput.type = 'hidden';
+        patientIdInput.name = 'patient_id';
+        patientIdInput.value = 'PATIENT_UNKNOWN'; // Placeholder
+        form.appendChild(patientIdInput);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+
+    if (cashPaymentBtn) {
+        cashPaymentBtn.addEventListener('click', function () {
+            if (currentTotalFee > 0) {
+                submitPayment('cash', currentTotalFee);
+            } else {
+                alert('결제할 금액이 없습니다.');
+            }
+        });
+    }
+
+    if (cardPaymentBtn) {
+        cardPaymentBtn.addEventListener('click', function () {
+            if (currentTotalFee > 0) {
+                submitPayment('card', currentTotalFee);
+            } else {
+                alert('결제할 금액이 없습니다.');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
