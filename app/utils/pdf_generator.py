@@ -86,7 +86,10 @@ def generate_prescription_pdf(patient_name, patient_rrn, department, prescriptio
     pdf.cell(0, 7, txt="* 이 처방전은 발행일로부터 7일간 유효합니다.", ln=True)
 
 
-    return pdf.output(dest='S').encode('latin-1')
+    pdf_bytes = pdf.output(dest="S")
+    if isinstance(pdf_bytes, str):
+        return pdf_bytes.encode("latin-1")
+    return bytes(pdf_bytes)
 
 def generate_medical_confirmation_pdf(patient_name, patient_rrn, disease_name):
     pdf = FPDF()
@@ -129,4 +132,7 @@ def generate_medical_confirmation_pdf(patient_name, patient_rrn, disease_name):
     # pdf.image("path/to/stamp.png", x=pdf.get_x() + 120, y=pdf.get_y() -10, w=30)
 
 
-    return pdf.output(dest='S').encode('latin-1')
+    pdf_bytes = pdf.output(dest="S")
+    if isinstance(pdf_bytes, str):
+        return pdf_bytes.encode("latin-1")
+    return bytes(pdf_bytes)
