@@ -1,10 +1,13 @@
 import os
+import csv # Added for potential direct use if lookup_reservation is adapted
+import re # Added for regex parsing
 import google.generativeai as genai
 from flask import Blueprint, request, jsonify, render_template
 import base64
 from io import BytesIO
 # PIL might be needed for image validation or manipulation, but not directly for API call if blobs are correct
 # from PIL import Image
+from app.routes.reception import lookup_reservation # Added import
 
 chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/api') # Added url_prefix for /api
 
@@ -29,7 +32,7 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 
 **제한 사항:**
 - 보건소 업무와 관련 없는 농담이나 사적인 대화는 지양합니다.
-- 개인정보를 묻거나 저장하지 않습니다.
+- 개인정보를 요청하거나 저장하지 마십시오. 단, 사용자가 이름과 주민등록번호를 제공하며 접수를 요청하는 경우, 접수 처리 목적으로만 해당 정보를 사용하고 관련 안내를 제공할 수 있습니다. 이 경우, '이름과 주민등록번호로 접수를 도와드릴까요?' 와 같이 사용자에게 명시적으로 확인을 구한 후 다음 단계를 진행하십시오. 주민등록번호는 다른 목적으로 절대 사용하거나 기억해서는 안 됩니다. 사용자가 이름과 주민등록번호로 접수를 요청하는 것으로 판단되면, 응답에 `[RRN_RECEPTION_INTENT]` 라는 특수 태그를 포함하고, 추출된 이름과 주민등록번호를 `이름: [이름], 주민번호: [주민번호]` 형식으로 포함해 주십시오. 주민등록번호로 접수를 원하시면 성함과 주민등록번호를 말씀해주세요.
 - 정치적, 종교적 또는 논란의 여지가 있는 주제에 대해서는 중립적인 입장을 취하거나 답변을 정중히 거절합니다. ("죄송하지만, 해당 질문에 대해서는 답변드리기 어렵습니다.")
 
 **이미지 입력 처리 (해당되는 경우):**
@@ -38,6 +41,70 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 - 이미지에 대한 분석이 불가능하거나 부적절한 경우, 정중하게 추가 정보를 요청하거나 답변할 수 없음을 알립니다.
 
 이제 방문객의 질문에 답변해주세요."""
+
+def process_rrn_reception(user_message, ai_response_text):
+    """
+    Processes the AI response to check for RRN reception intent and handles reservation lookup.
+    """
+    if "[RRN_RECEPTION_INTENT]" in ai_response_text:
+        name = None
+        rrn = None
+
+        # Attempt to parse Name and RRN from AI response
+        name_match_ai = re.search(r"이름:\s*([가-힣]{2,4})", ai_response_text)
+        rrn_match_ai = re.search(r"주민번호:\s*(\d{6}-\d{7})", ai_response_text)
+
+        if name_match_ai and rrn_match_ai:
+            name = name_match_ai.group(1)
+            rrn = rrn_match_ai.group(1)
+        else:
+            # Fallback: Attempt to parse Name and RRN from user message
+            name_match_user = re.search(r"([가-힣]{2,4})", user_message) # Simple name regex
+            rrn_match_user = re.search(r"(\d{6}-\d{7})", user_message)
+
+            if name_match_user:
+                # Potentially multiple Korean names could be in user_message, try to find the one near RRN or common phrases
+                # For simplicity, taking the first one for now. More sophisticated logic might be needed.
+                # Example: Check if a name is followed by "입니다", "이고", or near the RRN.
+                name_candidates = re.findall(r"([가-힣]{2,4})", user_message)
+                # This is a placeholder for more advanced name extraction if needed.
+                # For now, we'll try to use the one extracted by AI if AI included the tag,
+                # or the first found in user message if AI didn't format it.
+                if name_match_ai: name = name_match_ai.group(1)
+                elif name_candidates: name = name_candidates[0]
+
+
+                if rrn_match_user:
+                    rrn = rrn_match_user.group(1)
+                elif rrn_match_ai: # If AI found RRN but not name
+                    rrn = rrn_match_ai.group(1)
+
+
+            if not name and name_match_ai: name = name_match_ai.group(1) # If only AI found name
+            if not rrn and rrn_match_ai: rrn = rrn_match_ai.group(1) # If only AI found RRN
+
+
+        if name and rrn:
+            try:
+                # Assuming lookup_reservation is imported and works as expected
+                # It might need the full path to CSV if not handled within lookup_reservation itself
+                details = lookup_reservation(name, rrn)
+                if details:
+                    return f"성함 {name} 님, 예약이 확인되었습니다. 진료과: {details['department']}, 예약시간: {details['time']}, 위치: {details['location']}, 담당 의사: {details['doctor']} 입니다."
+                else:
+                    return f"성함 {name}, 주민등록번호 {rrn} 님, 확인된 예약 내역이 없습니다. 증상으로 접수하시겠습니까?"
+            except Exception as e:
+                # Log the error for server-side review: print(f"Error in lookup_reservation: {e}")
+                # Potentially, the CSV file might not be found or there's a format issue.
+                # Provide a generic message to the user or indicate a system issue.
+                return "예약 정보를 조회하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        else:
+            # Tag was present, but name or RRN couldn't be parsed.
+            # The AI should have asked for the information.
+            # Return None to use the AI's original response (which might be asking for the info).
+            return None
+    return None
+
 
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
@@ -127,13 +194,16 @@ def handle_chatbot_request():
             # If no safety block but also no parts (empty response)
             return jsonify({"reply": "죄송합니다. 질문에 대한 답변을 찾지 못했습니다."})
 
-
         bot_response_text = "".join(part.text for part in response.candidates[0].content.parts if hasattr(part, "text"))
+
+        # Attempt to process for RRN reception
+        reception_response = process_rrn_reception(user_question, bot_response_text)
+        if reception_response:
+            return jsonify({"reply": reception_response})
+
+        # If RRN reception didn't apply or process, continue with original bot_response_text
         if not bot_response_text.strip():
-             # This handles cases where the response might be empty or only whitespace
             bot_response_text = "죄송합니다. 현재 적절한 답변을 드리기 어렵습니다. 다른 방식으로 질문해주시겠어요?"
-
-
         return jsonify({"reply": bot_response_text})
 
     except genai.types.BlockedPromptException as bpe:
