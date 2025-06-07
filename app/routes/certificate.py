@@ -84,7 +84,20 @@ def generate_prescription_pdf():
         # Potentially pass an error message to reception or a general error page
         return redirect(url_for("reception.reception", error="department_info_missing"))
 
-    prescription_info = _load_prescription_data(department)
+    # Try to use prescription data stored during the payment step
+    last_prescriptions = session.get("last_prescriptions")
+    last_total_fee = session.get("last_total_fee")
+
+    if last_prescriptions is not None and last_total_fee is not None:
+        prescription_info = {
+            "prescriptions": last_prescriptions,
+            "total_fee": last_total_fee,
+        }
+        # Optionally clear the stored values after use
+        session.pop("last_prescriptions", None)
+        session.pop("last_total_fee", None)
+    else:
+        prescription_info = _load_prescription_data(department)
 
     if prescription_info is None or not prescription_info["prescriptions"]:
         # This could happen if CSV is missing, dept not found, or no items for dept.
